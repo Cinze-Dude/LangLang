@@ -1,0 +1,93 @@
+##
+Hello in this file theres all of my language syntax
+Hopefully one day I'll be able to parse it
+##
+
+# Literals #
+1;
+"2";
+<3>;
+true;
+five;
+null;
+
+# Prefix Expressions #
+-5;
+~true;
+
+# Postfix Expressions #
+x>+;
+x>-;
+x>!;
+x>@;
+
+x!;
+
+# Binary Hell #
+
+1 + 2 * 3 ** -1 / 3 % 1;
+2 ** 3 ** 4 && 8 - true;
+1 + 2 <<< (3 ~= 9) + 0;
+a && b || c <= 12;
+~a && (b ^ 4) + 5;
+foo()[0]>>name>>funcs>>run(6);
+
+# Assign Expressions #
+x = x!;
+x += x;
+x *= 2;
+
+# Binary Expressions #
+1 + 2 - 3 ** 6 / 4 % 10;
+
+# Blocks #
+do {
+    x = do {
+        x;
+    }
+}
+
+x -> string -> {number};
+
+x = 1..10(2);
+
+y = [1, 2, 3,];
+z = {1, 2, 3,};
+i = [[1, 2, 3],[4, 5, 6]];
+j = {
+    1: <r>,
+    2: <g>,
+};
+
+y[2] += 3;
+foo(j);
+
+#NOMANGLE
+let number k;
+for x of 1..10 {
+    if x % 2 == 0 {
+        k = x;
+    }
+    else {
+        k = @x;
+    }
+}
+
+while p ~= q {
+    k = 1;
+}
+
+##
+Unused:
+class,
+using,
+read,
+new,
+as,
+func,
+return,
+type,
+typeof,
+case,
+try
+##
