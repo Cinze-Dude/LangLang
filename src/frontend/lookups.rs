@@ -5,6 +5,7 @@ use std::{
 
 use crate::frontend::{
     ast::{Expr, Stmt, Type},
+    errors::{ResultExpr, ResultStmt, ResultType},
     parser::Parser,
     tokens::TokenKind,
 };
@@ -30,12 +31,12 @@ pub enum BindingPower {
 
 /* Handlers */
 
-pub type NudHandler = fn(&mut Parser) -> Box<Expr>;
-pub type LedHandler = fn(&mut Parser, Box<Expr>, BindingPower) -> Box<Expr>;
+pub type NudHandler = fn(&mut Parser) -> ResultExpr;
+pub type LedHandler = fn(&mut Parser, Box<Expr>, BindingPower) -> ResultExpr;
 pub type StmtHandler = fn(&mut Parser) -> Box<Stmt>;
 
-pub type TNudHandler = fn(&mut Parser) -> Box<Type>;
-pub type TLedHandler = fn(&mut Parser, Box<Type>, BindingPower) -> Box<Type>;
+pub type TNudHandler = fn(&mut Parser) -> ResultType;
+pub type TLedHandler = fn(&mut Parser, Box<Type>, BindingPower) -> ResultType;
 
 /* Lookup Table Types */
 

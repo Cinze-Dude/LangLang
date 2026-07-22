@@ -1,5 +1,6 @@
 use crate::frontend::{
     ast::Program,
+    errors::FrontendError,
     lookups::{create_token_lookups, create_type_lookups},
     tokens::{self, Token},
 };
@@ -43,17 +44,14 @@ impl Parser {
         Program(body)
     }
 
-    pub fn expect(&mut self, kind: tokens::TokenKind) -> &Token {
+    pub fn expect(&mut self, kind: tokens::TokenKind) -> Result<&Token, FrontendError> {
         let token = self.current_token();
 
         if token.kind != kind {
-            panic!(
-                "Parser Error: expected {:?}, found {:?} at line {}, position {}",
-                kind, token.kind, token.span.start_line, token.span.start_pos,
-            );
+            return Err(FrontendError::UnexpectedToken(token.clone()));
         }
 
-        self.eat()
+        Ok(self.eat())
     }
 
     pub fn consume(&mut self, kind: tokens::TokenKind) -> bool {

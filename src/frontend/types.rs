@@ -1,15 +1,24 @@
 use crate::frontend::{
     ast::{TYPELU, Type},
+    errors::{FrontendError, ResultType},
     lookups::{BindingPower, TBP, TLED, TNUD},
     parser::Parser,
     tokens::TokenKind,
 };
 
 impl Parser {
-    pub fn parse_type(&mut self, bp: BindingPower) -> Box<Type> {
+    pub fn parse_type(&mut self, bp: BindingPower) -> ResultType {
         let t = self.current_token();
 
-        let mut left = TNUD.read().unwrap().get(&t.kind).unwrap()(self);
+        let nud = {
+            let table = TNUD.read().unwrap();
+
+            *table
+                .get(&t.kind)
+                .ok_or_else(|| FrontendError::UnexpectedToken(t.clone()))?
+        };
+
+        let mut left = nud(self)?;
 
         loop {
             if !self.has_tokens() {
@@ -18,74 +27,73 @@ impl Parser {
 
             let t = self.current_token();
 
-            let tbp = {
-                let bp_table = TBP.read().unwrap();
-                match bp_table.get(&t.kind) {
-                    Some(token_bp) if *token_bp > bp => *token_bp,
-                    _ => break,
-                }
+            let Some(&tbp) = TBP.read().unwrap().get(&t.kind) else {
+                break;
             };
+
+            if tbp <= bp {
+                break;
+            }
 
             let handler = {
-                let led_table = TLED.read().unwrap();
-                match led_table.get(&t.kind) {
-                    Some(handler) => *handler,
-                    None => panic!(
-                        "Parser Error: no type LED handler for {:?} at line {}, position {}",
-                        t.kind, t.span.start_line, t.span.start_pos,
-                    ),
-                }
+                let table = TLED.read().unwrap();
+
+                *table
+                    .get(&t.kind)
+                    .ok_or_else(|| FrontendError::UnexpectedToken(t.clone()))?
             };
 
-            left = handler(self, left, tbp);
+            left = handler(self, left, tbp)?;
         }
 
-        left
+        Ok(left)
     }
 
-    pub fn parse_symbol(&mut self) -> Box<Type> {
+    pub fn parse_symbol(&mut self) -> ResultType {
         let token = self.eat();
 
         if let Some(ty) = TYPELU.get(token.value.as_str()) {
-            Box::new(ty.clone())
+            Ok(Box::new(ty.clone()))
         } else {
-            Box::new(Type::Symbol(token.value.clone()))
+            Ok(Box::new(Type::Symbol(token.value.clone())))
         }
     }
 
-    pub fn parse_tuple_type(&mut self, first: Box<Type>) -> Box<Type> {
+    pub fn parse_tuple_type(&mut self, first: Box<Type>) -> ResultType {
         let mut types = vec![*first];
 
         while self.current_token().kind == TokenKind::POLE {
             self.eat();
-            types.push(*self.parse_type(BindingPower::DEFAULT));
+            types.push(*self.parse_type(BindingPower::DEFAULT)?);
         }
 
-        self.expect(TokenKind::SC);
+        self.expect(TokenKind::SC)?;
 
         let length = self
-            .expect(TokenKind::NUMBER)
+            .expect(TokenKind::NUMBER)?
             .value
             .parse()
-            .expect("Tuple length must be numerical");
+            .map_err(|_| FrontendError::InvalidNumber(self.current_token().value.clone()))?;
 
-        self.expect(TokenKind::CCURLY);
+        self.expect(TokenKind::CCURLY)?;
 
-        Box::new(Type::Tuple(types, length))
+        Ok(Box::new(Type::Tuple(types, length)))
     }
 
-    pub fn parse_map_type(&mut self, first: Box<Type>) -> Box<Type> {
-        let key = first;
-        self.expect(TokenKind::COLON);
-        let val = self.parse_type(BindingPower::DEFAULT);
-        self.expect(TokenKind::CCURLY);
-        Box::new(Type::Map(key, val))
+    pub fn parse_map_type(&mut self, first: Box<Type>) -> ResultType {
+        self.expect(TokenKind::COLON)?;
+
+        let val = self.parse_type(BindingPower::DEFAULT)?;
+
+        self.expect(TokenKind::CCURLY)?;
+
+        Ok(Box::new(Type::Map(first, val)))
     }
 
-    pub fn parse_brace_type(&mut self) -> Box<Type> {
-        self.expect(TokenKind::SCURLY);
+    pub fn parse_brace_type(&mut self) -> ResultType {
+        self.expect(TokenKind::SCURLY)?;
 
-        let first = self.parse_type(BindingPower::DEFAULT);
+        let first = self.parse_type(BindingPower::DEFAULT)?;
 
         if self.current_token().kind == TokenKind::COLON {
             self.parse_map_type(first)
@@ -94,34 +102,35 @@ impl Parser {
         }
     }
 
-    pub fn parse_vector(&mut self) -> Box<Type> {
-        self.expect(TokenKind::SBRACK);
+    pub fn parse_vector(&mut self) -> ResultType {
+        self.expect(TokenKind::SBRACK)?;
 
-        let ty = self.parse_type(BindingPower::DEFAULT);
+        let ty = self.parse_type(BindingPower::DEFAULT)?;
 
-        self.expect(TokenKind::CBRACK);
+        self.expect(TokenKind::CBRACK)?;
 
-        Box::new(Type::Vector(ty))
+        Ok(Box::new(Type::Vector(ty)))
     }
 
-    pub fn parse_option(&mut self, ty: Box<Type>, bp: BindingPower) -> Box<Type> {
-        self.parse_type(bp);
-        self.expect(TokenKind::QUESTION);
-        Box::new(Type::Union(vec![*ty, Type::Null]))
+    pub fn parse_option(&mut self, ty: Box<Type>, _: BindingPower) -> ResultType {
+        self.expect(TokenKind::QUESTION)?;
+
+        Ok(Box::new(Type::Union(vec![*ty, Type::Null])))
     }
 
-    pub fn parse_union(&mut self, left: Box<Type>, bp: BindingPower) -> Box<Type> {
+    pub fn parse_union(&mut self, left: Box<Type>, bp: BindingPower) -> ResultType {
         let mut types = vec![*left];
 
         loop {
-            self.expect(TokenKind::POLE);
-            types.push(*self.parse_type(bp));
+            self.expect(TokenKind::POLE)?;
+
+            types.push(*self.parse_type(bp)?);
 
             if self.current_token().kind != TokenKind::POLE {
                 break;
             }
         }
 
-        Box::new(Type::Union(types))
+        Ok(Box::new(Type::Union(types)))
     }
 }

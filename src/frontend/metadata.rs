@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::LazyLock};
 use crate::frontend::{
     ast::Stmt,
     parser::Parser,
-    tokens::TokenKind::{self, IDENT},
+    tokens::TokenKind::{self},
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -46,7 +46,7 @@ impl Parser {
             self.eat();
         }
 
-        let token = self.expect(IDENT);
+        let token = self.expect(TokenKind::IDENT);
 
         let metadata = *METADATA.get(token.value.as_str()).unwrap_or_else(|| {
             panic!(
