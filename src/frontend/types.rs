@@ -15,7 +15,7 @@ impl Parser {
 
             *table
                 .get(&t.kind)
-                .ok_or_else(|| FrontendError::UnexpectedToken(t.clone()))?
+                .ok_or_else(|| FrontendError::UnexpectedToken(t.kind))?
         };
 
         let mut left = nud(self)?;
@@ -40,7 +40,7 @@ impl Parser {
 
                 *table
                     .get(&t.kind)
-                    .ok_or_else(|| FrontendError::UnexpectedToken(t.clone()))?
+                    .ok_or_else(|| FrontendError::UnexpectedToken(t.kind))?
             };
 
             left = handler(self, left, tbp)?;

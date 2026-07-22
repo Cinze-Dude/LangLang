@@ -1,12 +1,15 @@
 use crate::frontend::{
     ast::{Expr, Stmt, Type},
-    tokens::{Token, TokenKind},
+    tokens::TokenKind,
 };
 
 #[derive(Debug, Clone)]
 pub enum FrontendError {
-    UnexpectedToken(Token),
-    ExpectedToken { expected: String, found: TokenKind },
+    UnexpectedToken(TokenKind),
+    ExpectedToken {
+        expected: TokenKind,
+        found: TokenKind,
+    },
     InvalidType(String),
 
     InvalidExpression(String),
@@ -30,7 +33,7 @@ impl std::fmt::Display for FrontendError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             FrontendError::UnexpectedToken(t) => {
-                write!(f, "unexpected token {:?}", t.kind)
+                write!(f, "unexpected token {:?}", t)
             }
 
             FrontendError::InvalidType(n) => {
@@ -49,7 +52,7 @@ impl std::fmt::Display for FrontendError {
                 expected: e,
                 found: g,
             } => {
-                write!(f, "expected: '{}' but found '{:?}'", e, g)
+                write!(f, "expected: '{:?}' but found '{:?}'", e, g)
             }
 
             FrontendError::InvalidNumber(n) => {

@@ -15,7 +15,7 @@ impl Parser {
 
             *table
                 .get(&t.kind)
-                .ok_or_else(|| FrontendError::UnexpectedToken(t.clone()))?
+                .ok_or_else(|| FrontendError::UnexpectedToken(t.kind))?
         };
 
         let mut left = nud(self)?;
@@ -36,7 +36,7 @@ impl Parser {
 
                 *table
                     .get(&t.kind)
-                    .ok_or_else(|| FrontendError::UnexpectedToken(t.clone()))?
+                    .ok_or_else(|| FrontendError::UnexpectedToken(t.kind))?
             };
 
             left = led(self, left, next_bp)?;
@@ -76,7 +76,7 @@ impl Parser {
             TokenKind::NAN => Expr::Literal(Literal::NaN),
 
             _ => {
-                return Err(FrontendError::UnexpectedToken(token.clone()));
+                return Err(FrontendError::UnexpectedToken(token.kind));
             }
         };
 
@@ -252,7 +252,7 @@ impl Parser {
 
     pub fn parse_block(&mut self) -> ResultExpr {
         self.eat();
-        self.expect(TokenKind::SCURLY);
+        let _ = self.expect(TokenKind::SCURLY);
         let mut block = Vec::new();
         while self.current_token().kind != TokenKind::CCURLY {
             block.push(*self.parse_stmt()?);

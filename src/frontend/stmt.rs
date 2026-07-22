@@ -38,38 +38,32 @@ impl parser::Parser {
     pub fn parse_var(&mut self) -> ResultStmt {
         let auto = self.eat().kind == TokenKind::AUTO;
         let mut imut = false;
-        let typ;
-        let name;
-        let result;
+
         if self.current_token().kind == TokenKind::IMUT {
             if auto {
-                panic!(
-                    "Parser Error: auto variable near {} on line {} cannot be immutable",
-                    self.current_token().span.start_pos,
-                    self.current_token().span.start_line
-                )
+                return Err(FrontendError::AutoImmutable);
             }
+
             imut = true;
             self.eat();
         }
-        if auto {
-            typ = Type::Inferred;
-        } else {
-            typ = *self.parse_type(BindingPower::DEFAULT)?;
-        }
 
-        name = self.expect(TokenKind::IDENT)?.value.clone();
+        let typ = if auto {
+            Type::Inferred
+        } else {
+            *self.parse_type(BindingPower::DEFAULT)?
+        };
+
+        let name = self.expect(TokenKind::IDENT)?.value.clone();
 
         match self.current_token().kind {
             TokenKind::SC => {
                 if auto || imut {
-                    panic!(
-                        "Parser Error: variables can only have = as an assignment operator, in position {} on line {}",
-                        self.current_token().span.start_pos,
-                        self.current_token().span.start_line
-                    )
+                    return Err(FrontendError::MissingInitializer(name));
                 }
+
                 self.eat();
+
                 Ok(Box::new(Stmt::Var {
                     name,
                     expr: None,
@@ -78,10 +72,14 @@ impl parser::Parser {
                     typ,
                 }))
             }
+
             TokenKind::ASSIGN => {
                 self.eat();
-                result = *self.parse_expr(BindingPower::DEFAULT)?;
-                self.expect(TokenKind::SC);
+
+                let result = *self.parse_expr(BindingPower::DEFAULT)?;
+
+                self.expect(TokenKind::SC)?;
+
                 Ok(Box::new(Stmt::Var {
                     name,
                     expr: Some(result),
@@ -90,11 +88,11 @@ impl parser::Parser {
                     typ,
                 }))
             }
-            _ => panic!(
-                "Parser Error: variables can only have = as an assignment operator, in position {} on line {}",
-                self.current_token().span.start_pos,
-                self.current_token().span.start_line
-            ),
+
+            _ => Err(FrontendError::ExpectedToken {
+                expected: TokenKind::ASSIGN,
+                found: self.current_token().kind,
+            }),
         }
     }
 
@@ -129,7 +127,7 @@ impl parser::Parser {
     }
 
     pub fn parse_while(&mut self) -> ResultStmt {
-        self.expect(TokenKind::WHILE);
+        let _ = self.expect(TokenKind::WHILE);
         let cond = self.parse_expr(BindingPower::DEFAULT)?;
         Ok(Box::new(Stmt::While(
             cond,
@@ -138,7 +136,7 @@ impl parser::Parser {
     }
 
     pub fn parse_for(&mut self) -> ResultStmt {
-        self.expect(TokenKind::FOR);
+        let _ = self.expect(TokenKind::FOR);
         let iter = self.parse_expr(BindingPower::DEFAULT)?;
         Ok(Box::new(Stmt::For(
             iter,

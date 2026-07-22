@@ -48,7 +48,7 @@ impl Parser {
         let token = self.current_token();
 
         if token.kind != kind {
-            return Err(FrontendError::UnexpectedToken(token.clone()));
+            return Err(FrontendError::UnexpectedToken(token.kind));
         }
 
         Ok(self.eat())
