@@ -15,6 +15,7 @@ pub enum FrontendError {
     InvalidNumber(String),
     InvalidRune(String),
     InvalidOperator,
+    InvalidMetadata(String),
 }
 
 pub type ResultExpr = Result<Box<Expr>, FrontendError>;

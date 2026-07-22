@@ -33,7 +33,7 @@ pub enum BindingPower {
 
 pub type NudHandler = fn(&mut Parser) -> ResultExpr;
 pub type LedHandler = fn(&mut Parser, Box<Expr>, BindingPower) -> ResultExpr;
-pub type StmtHandler = fn(&mut Parser) -> Box<Stmt>;
+pub type StmtHandler = fn(&mut Parser) -> ResultStmt;
 
 pub type TNudHandler = fn(&mut Parser) -> ResultType;
 pub type TLedHandler = fn(&mut Parser, Box<Type>, BindingPower) -> ResultType;

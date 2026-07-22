@@ -2,6 +2,7 @@ use std::{collections::HashMap, sync::LazyLock};
 
 use crate::frontend::{
     ast::Stmt,
+    errors::{FrontendError, ResultStmt},
     parser::Parser,
     tokens::TokenKind::{self},
 };
@@ -35,9 +36,11 @@ pub static METADATA: LazyLock<HashMap<&'static str, Metadata>> = LazyLock::new(|
 });
 
 impl Parser {
-    pub fn parse_metadata(&mut self) -> Box<Stmt> {
-        self.expect(TokenKind::POUND);
+    pub fn parse_metadata(&mut self) -> ResultStmt {
+        self.expect(TokenKind::POUND)?;
+
         let mut status = Status::Activation;
+
         if self.current_token().kind == TokenKind::NOT {
             status = Status::Deactivation;
             self.eat();
@@ -46,15 +49,12 @@ impl Parser {
             self.eat();
         }
 
-        let token = self.expect(TokenKind::IDENT);
+        let token = self.expect(TokenKind::IDENT)?;
 
-        let metadata = *METADATA.get(token.value.as_str()).unwrap_or_else(|| {
-            panic!(
-                "Parser Error: unknown metadata '{}' at line {}, position {}",
-                token.value, token.span.start_line, token.span.start_pos,
-            )
-        });
+        let metadata = *METADATA
+            .get(token.value.as_str())
+            .ok_or_else(|| FrontendError::InvalidMetadata(token.value.clone()))?;
 
-        Box::new(Stmt::Metadata(metadata, status))
+        Ok(Box::new(Stmt::Metadata(metadata, status)))
     }
 }
