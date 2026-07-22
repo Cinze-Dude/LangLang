@@ -7,12 +7,64 @@ pub type RuntimeValueResult = RuntimeResult<RuntimeValue>;
 pub enum RuntimeError {
     UndefinedVariable(String),
     DivisionByZero,
+
     TypeMismatch { expected: String, found: String },
+
     IndexOutOfBounds,
     InvalidOperand,
     NotCallable,
     NumberError,
     InfinityError,
+
     NotImplemented,
+
     Custom(String),
 }
+
+impl std::fmt::Display for RuntimeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            RuntimeError::UndefinedVariable(name) => {
+                write!(f, "undefined variable '{}'", name)
+            }
+
+            RuntimeError::DivisionByZero => {
+                write!(f, "division by zero")
+            }
+
+            RuntimeError::TypeMismatch { expected, found } => {
+                write!(f, "expected type '{}', found '{}'", expected, found)
+            }
+
+            RuntimeError::IndexOutOfBounds => {
+                write!(f, "index out of bounds")
+            }
+
+            RuntimeError::InvalidOperand => {
+                write!(f, "invalid operand")
+            }
+
+            RuntimeError::NotCallable => {
+                write!(f, "value is not callable")
+            }
+
+            RuntimeError::NumberError => {
+                write!(f, "number error")
+            }
+
+            RuntimeError::InfinityError => {
+                write!(f, "infinity error")
+            }
+
+            RuntimeError::NotImplemented => {
+                write!(f, "not implemented")
+            }
+
+            RuntimeError::Custom(msg) => {
+                write!(f, "{}", msg)
+            }
+        }
+    }
+}
+
+impl std::error::Error for RuntimeError {}

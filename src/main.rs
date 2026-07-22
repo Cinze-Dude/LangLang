@@ -1,4 +1,5 @@
 use std::fs;
+use std::io::{self, Write};
 
 use crate::{
     frontend::{lexer, parser},
@@ -8,18 +9,16 @@ use crate::{
 mod frontend;
 mod runtime;
 
-use std::io::{self, Write};
-
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let repl = true;
 
     if repl {
         loop {
             print!("> ");
-            io::stdout().flush().unwrap();
+            io::stdout().flush()?;
 
             let mut src = String::new();
-            io::stdin().read_line(&mut src).unwrap();
+            io::stdin().read_line(&mut src)?;
 
             let src = src.trim();
 
@@ -35,25 +34,40 @@ fn main() {
             let tokens = lexer.tokenize();
 
             let mut parser = parser::Parser::new(tokens);
-            let ast = parser.parse();
-            println!("value: {:#?}", ast);
+
+            let ast = match parser.parse() {
+                Ok(ast) => ast,
+                Err(err) => {
+                    eprintln!("Frontend error: {:?}", err);
+                    continue;
+                }
+            };
+
+            println!("AST: {:#?}", ast);
 
             let mut inter = values::Interpreter::new();
-            let values = inter.eval_program(ast);
-            println!("value: {:?}", values);
+
+            match inter.eval_program(ast) {
+                Ok(value) => println!("value: {:?}", value),
+                Err(err) => eprintln!("Runtime error: {:?}", err),
+            }
         }
     } else {
-        let src = fs::read_to_string("example.linguo").expect("boom");
+        let src = fs::read_to_string("example.linguo")?;
 
         let mut lexer = lexer::Lexer::new(src);
         let tokens = lexer.tokenize();
 
         let mut parser = parser::Parser::new(tokens);
-        let ast = parser.parse();
+        let ast = parser.parse()?;
+
+        println!("AST: {:#?}", ast);
 
         let mut inter = values::Interpreter::new();
-        let value = inter.eval_program(ast);
+        let value = inter.eval_program(ast)?;
 
-        println!("{:#?}", value);
+        println!("value: {:?}", value);
     }
+
+    Ok(())
 }

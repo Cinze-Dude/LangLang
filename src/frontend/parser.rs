@@ -34,14 +34,14 @@ impl Parser {
         self.index < self.tokens.len() && self.current_token().kind != tokens::TokenKind::EOF
     }
 
-    pub fn parse(&mut self) -> Program {
-        let mut body = vec![];
+    pub fn parse(&mut self) -> Result<Program, FrontendError> {
+        let mut body = Vec::new();
 
         while self.has_tokens() {
-            body.push(*self.parse_stmt());
+            body.push(*self.parse_stmt()?);
         }
 
-        Program(body)
+        Ok(Program(body))
     }
 
     pub fn expect(&mut self, kind: tokens::TokenKind) -> Result<&Token, FrontendError> {

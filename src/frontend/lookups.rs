@@ -4,7 +4,7 @@ use std::{
 };
 
 use crate::frontend::{
-    ast::{Expr, Stmt, Type},
+    ast::{Expr, Type},
     errors::{ResultExpr, ResultStmt, ResultType},
     parser::Parser,
     tokens::TokenKind,

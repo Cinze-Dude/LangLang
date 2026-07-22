@@ -255,7 +255,7 @@ impl Parser {
         self.expect(TokenKind::SCURLY);
         let mut block = Vec::new();
         while self.current_token().kind != TokenKind::CCURLY {
-            block.push(*self.parse_stmt());
+            block.push(*self.parse_stmt()?);
         }
         self.eat();
         Ok(Box::new(Expr::Block(block)))
