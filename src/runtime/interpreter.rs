@@ -4,8 +4,8 @@ use crate::{
     },
     runtime::{
         binops::{
-            eval_bin_add, eval_bin_div, eval_bin_mod, eval_bin_mul, eval_bin_pow, eval_bin_sub,
-            fact,
+            eval_bin_add, eval_bin_and, eval_bin_div, eval_bin_mod, eval_bin_mul, eval_bin_or,
+            eval_bin_pow, eval_bin_sub, eval_bin_xor, fact,
         },
         errors::{RuntimeError, RuntimeResult, RuntimeValueResult},
         values::{Interpreter, RuntimeType, RuntimeValue},
@@ -145,6 +145,9 @@ impl Interpreter {
             (BinaryOperator::SLASH, x, y) => eval_bin_div(x, y),
             (BinaryOperator::MOD, x, y) => eval_bin_mod(x, y),
             (BinaryOperator::POW, x, y) => eval_bin_pow(x, y),
+            (BinaryOperator::AND, x, y) => eval_bin_and(x, y),
+            (BinaryOperator::OR, x, y) => eval_bin_or(x, y),
+            (BinaryOperator::XOR, x, y) => eval_bin_xor(x, y),
             _ => Err(RuntimeError::NotImplemented),
         }
     }

@@ -250,31 +250,12 @@ pub fn eval_bin_pow(x: RuntimeValue, y: RuntimeValue) -> RuntimeValueResult {
             Ok(RuntimeValue::Number(n.powf(exp)))
         }
 
-        // infinity ^ positive number
-        (RuntimeValue::Infinity, RuntimeValue::Number(exp)) => {
-            if exp > 0.0 {
-                Ok(RuntimeValue::Infinity)
-            } else if exp == 0.0 {
-                Ok(RuntimeValue::Number(1.0))
-            } else {
-                Ok(RuntimeValue::Number(0.0))
-            }
-        }
+        (RuntimeValue::Infinity, RuntimeValue::Infinity) => Ok(RuntimeValue::Infinity),
 
-        // -infinity ^ integer
-        (RuntimeValue::NegInfinity, RuntimeValue::Number(exp)) => {
-            if exp == 0.0 {
-                Ok(RuntimeValue::Number(1.0))
-            } else if exp.fract() == 0.0 {
-                if (exp as i64) % 2 == 0 {
-                    Ok(RuntimeValue::Infinity)
-                } else {
-                    Ok(RuntimeValue::NegInfinity)
-                }
-            } else {
-                Ok(RuntimeValue::NaN)
-            }
-        }
+        (RuntimeValue::Infinity, RuntimeValue::NegInfinity) => Ok(RuntimeValue::Number(0.0)),
+
+        (RuntimeValue::NegInfinity, RuntimeValue::Infinity)
+        | (RuntimeValue::NegInfinity, RuntimeValue::NegInfinity) => Ok(RuntimeValue::NaN),
 
         // vector ^ number
         (RuntimeValue::Vector(v, ty), RuntimeValue::Number(exp)) => Ok(RuntimeValue::Vector(
@@ -283,6 +264,42 @@ pub fn eval_bin_pow(x: RuntimeValue, y: RuntimeValue) -> RuntimeValueResult {
                 .collect::<Result<Vec<_>, _>>()?,
             ty,
         )),
+
+        _ => Err(RuntimeError::InvalidOperand),
+    }
+}
+
+pub fn eval_bin_and(x: RuntimeValue, y: RuntimeValue) -> RuntimeValueResult {
+    match (x, y) {
+        (RuntimeValue::Bool(a), RuntimeValue::Bool(b)) => Ok(RuntimeValue::Bool(a && b)),
+
+        (RuntimeValue::Number(a), RuntimeValue::Number(b)) => {
+            Ok(RuntimeValue::Number(((a as i64) & (b as i64)) as f64))
+        }
+
+        _ => Err(RuntimeError::InvalidOperand),
+    }
+}
+
+pub fn eval_bin_or(x: RuntimeValue, y: RuntimeValue) -> RuntimeValueResult {
+    match (x, y) {
+        (RuntimeValue::Bool(a), RuntimeValue::Bool(b)) => Ok(RuntimeValue::Bool(a || b)),
+
+        (RuntimeValue::Number(a), RuntimeValue::Number(b)) => {
+            Ok(RuntimeValue::Number(((a as i64) | (b as i64)) as f64))
+        }
+
+        _ => Err(RuntimeError::InvalidOperand),
+    }
+}
+
+pub fn eval_bin_xor(x: RuntimeValue, y: RuntimeValue) -> RuntimeValueResult {
+    match (x, y) {
+        (RuntimeValue::Bool(a), RuntimeValue::Bool(b)) => Ok(RuntimeValue::Bool(a ^ b)),
+
+        (RuntimeValue::Number(a), RuntimeValue::Number(b)) => {
+            Ok(RuntimeValue::Number(((a as i64) ^ (b as i64)) as f64))
+        }
 
         _ => Err(RuntimeError::InvalidOperand),
     }
