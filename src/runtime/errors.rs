@@ -7,6 +7,7 @@ pub type RuntimeValueResult = RuntimeResult<RuntimeValue>;
 pub enum RuntimeError {
     UndefinedVariable(String),
     DivisionByZero,
+    FactorialOverflow,
 
     TypeMismatch { expected: String, found: String },
 
@@ -54,6 +55,10 @@ impl std::fmt::Display for RuntimeError {
 
             RuntimeError::InfinityError => {
                 write!(f, "infinity error")
+            }
+
+            RuntimeError::FactorialOverflow => {
+                write!(f, "factorial overflow")
             }
 
             RuntimeError::NotImplemented => {
