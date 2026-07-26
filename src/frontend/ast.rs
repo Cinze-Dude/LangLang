@@ -211,6 +211,7 @@ pub enum Stmt {
         name: String,
         expr: Option<Expr>,
         imut: bool,
+        dynm: bool,
         init: bool,
         typ: Type,
     },

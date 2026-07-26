@@ -52,8 +52,26 @@ fn eval_bin_add(x: RuntimeValue, y: RuntimeValue) -> RuntimeValueResult {
             Ok(RuntimeValue::String(format!("{}{}", s, c)))
         }
 
+        (RuntimeValue::Vector(mut v, ty), RuntimeValue::Vector(w, x)) => {
+            if x == ty {
+                v.extend(w);
+                Ok(RuntimeValue::Vector(v, ty))
+            } else {
+                Err(RuntimeError::InvalidOperand)
+            }
+        }
+
         (i, RuntimeValue::Vector(mut v, ty)) => {
             if i.runtime_type() == ty {
+                v.push(i);
+                Ok(RuntimeValue::Vector(v, ty))
+            } else {
+                Err(RuntimeError::InvalidOperand)
+            }
+        }
+
+        (RuntimeValue::Vector(mut v, ty), i) => {
+            if ty.contains(&i.runtime_type()) {
                 v.push(i);
                 Ok(RuntimeValue::Vector(v, ty))
             } else {
@@ -66,6 +84,37 @@ fn eval_bin_add(x: RuntimeValue, y: RuntimeValue) -> RuntimeValueResult {
         }
 
         (RuntimeValue::Number(n), RuntimeValue::Number(m)) => Ok(RuntimeValue::Number(n + m)),
+
+        _ => Err(RuntimeError::InvalidOperand),
+    }
+}
+
+fn eval_bin_sub(x: RuntimeValue, y: RuntimeValue) -> RuntimeValueResult {
+    match (x, y) {
+        (RuntimeValue::Infinity, RuntimeValue::Infinity)
+        | (RuntimeValue::NegInfinity, RuntimeValue::NegInfinity) => Ok(RuntimeValue::NaN),
+
+        (RuntimeValue::Infinity, RuntimeValue::NegInfinity)
+        | (RuntimeValue::NegInfinity, RuntimeValue::Infinity) => Ok(RuntimeValue::Infinity),
+
+        (RuntimeValue::Infinity, _) | (_, RuntimeValue::NegInfinity) => Ok(RuntimeValue::Infinity),
+
+        (RuntimeValue::NegInfinity, _) | (_, RuntimeValue::Infinity) => {
+            Ok(RuntimeValue::NegInfinity)
+        }
+
+        (RuntimeValue::NaN, _) | (_, RuntimeValue::NaN) => Ok(RuntimeValue::NaN),
+
+        (RuntimeValue::Number(n), RuntimeValue::Number(m)) => Ok(RuntimeValue::Number(n - m)),
+
+        // Vector - value: remove first matching element
+        (RuntimeValue::Vector(mut v, ty), value) => {
+            if let Some(index) = v.iter().position(|item| item.equals(&value)) {
+                v.remove(index);
+            }
+
+            Ok(RuntimeValue::Vector(v, ty))
+        }
 
         _ => Err(RuntimeError::InvalidOperand),
     }
@@ -104,19 +153,19 @@ impl Interpreter {
             .map(|expr| self.eval_expr(expr))
             .collect::<RuntimeResult<Vec<_>>>()?;
 
-        let ty = values
-            .first()
-            .map(RuntimeValue::runtime_type)
-            .unwrap_or(RuntimeType::Null);
+        let mut types = Vec::<RuntimeType>::new();
 
-        for elem in &values {
-            if elem.runtime_type() != ty {
-                return Err(RuntimeError::TypeMismatch {
-                    expected: ty.stringify(),
-                    found: elem.runtime_type().stringify(),
-                });
+        for value in &values {
+            if !types.contains(&value.runtime_type()) {
+                types.push(value.runtime_type());
             }
         }
+
+        let ty = match types.len() {
+            0 => RuntimeType::Null,
+            1 => types.pop().unwrap(),
+            _ => RuntimeType::Union(types),
+        };
 
         Ok(RuntimeValue::Vector(values, ty))
     }
@@ -197,7 +246,7 @@ impl Interpreter {
         let r = self.eval_expr(right)?;
         match (op, l, r) {
             (BinaryOperator::PLUS, x, y) => eval_bin_add(x, y),
-            (BinaryOperator::MINUS, x, y) => Ok(RuntimeValue::Number(0.0)),
+            (BinaryOperator::MINUS, x, y) => eval_bin_sub(x, y),
             (BinaryOperator::TIMES, x, y) => Ok(RuntimeValue::Number(0.0)),
             _ => Err(RuntimeError::InvalidOperand),
         }

@@ -52,6 +52,8 @@ pub enum RuntimeType {
 
     Func,
     NativeFunction,
+
+    Union(Vec<RuntimeType>),
 }
 
 impl RuntimeType {
@@ -82,6 +84,26 @@ impl RuntimeType {
 
             RuntimeType::Func => "func".into(),
             RuntimeType::NativeFunction => "nativefunc".into(),
+
+            RuntimeType::Union(types) => {
+                let types = types.iter().map(RuntimeType::stringify).collect::<Vec<_>>();
+
+                format!("{{{}}}", types.join(" | "))
+            }
+        }
+    }
+
+    pub fn contains(&self, other: &RuntimeType) -> bool {
+        match (self, other) {
+            (RuntimeType::Union(atypes), RuntimeType::Union(btypes)) => {
+                btypes.iter().all(|bty| atypes.contains(bty))
+            }
+
+            (RuntimeType::Union(atypes), other) => atypes.iter().any(|aty| aty.contains(other)),
+
+            (a, RuntimeType::Union(btypes)) => btypes.iter().all(|bty| a.contains(bty)),
+
+            (b, other) => b == other,
         }
     }
 }
@@ -111,6 +133,38 @@ impl RuntimeValue {
         match self {
             RuntimeValue::Number(n) => Ok(*n),
             _ => Err(RuntimeError::NumberError),
+        }
+    }
+
+    pub fn equals(&self, other: &Self) -> bool {
+        match (self, other) {
+            (RuntimeValue::Null, RuntimeValue::Null)
+            | (RuntimeValue::Infinity, RuntimeValue::Infinity)
+            | (RuntimeValue::NegInfinity, RuntimeValue::NegInfinity)
+            | (RuntimeValue::NaN, RuntimeValue::NaN) => true,
+
+            (RuntimeValue::Bool(b), RuntimeValue::Bool(d)) => b == d,
+            (RuntimeValue::Number(n), RuntimeValue::Number(m)) => n == m,
+            (RuntimeValue::String(s), RuntimeValue::String(z)) => s == z,
+            (RuntimeValue::Rune(r), RuntimeValue::Rune(q)) => r == q,
+
+            (RuntimeValue::Vector(v, t), RuntimeValue::Vector(w, p)) => {
+                t == p && v.len() == w.len() && v.iter().zip(w.iter()).all(|(a, b)| a.equals(b))
+            }
+
+            (RuntimeValue::Tuple(v, len), RuntimeValue::Tuple(w, other_len)) => {
+                len == other_len && v.iter().zip(w.iter()).all(|(a, b)| a.equals(b))
+            }
+
+            (RuntimeValue::Map(a), RuntimeValue::Map(b)) => {
+                a.len() == b.len()
+                    && a.iter().all(|(key_a, val_a)| {
+                        b.iter()
+                            .any(|(key_b, val_b)| key_a.equals(key_b) && val_a.equals(val_b))
+                    })
+            }
+
+            _ => false,
         }
     }
 

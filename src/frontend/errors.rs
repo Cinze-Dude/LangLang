@@ -21,6 +21,7 @@ pub enum FrontendError {
     InvalidMetadata(String),
 
     AutoImmutable,
+    ImutDynamic,
     MissingInitializer(String),
     Internal(String),
 }
@@ -73,6 +74,10 @@ impl std::fmt::Display for FrontendError {
 
             FrontendError::AutoImmutable => {
                 write!(f, "auto variables cannot be immutable")
+            }
+
+            FrontendError::ImutDynamic => {
+                write!(f, "dynamic variables cannot be immutable")
             }
 
             FrontendError::MissingInitializer(name) => {

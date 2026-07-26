@@ -38,6 +38,7 @@ impl parser::Parser {
     pub fn parse_var(&mut self) -> ResultStmt {
         let auto = self.eat().kind == TokenKind::AUTO;
         let mut imut = false;
+        let mut dynm = false;
 
         if self.current_token().kind == TokenKind::IMUT {
             if auto {
@@ -45,6 +46,15 @@ impl parser::Parser {
             }
 
             imut = true;
+            self.eat();
+        }
+
+        if self.current_token().kind == TokenKind::DYN {
+            if imut {
+                return Err(FrontendError::ImutDynamic);
+            }
+
+            dynm = true;
             self.eat();
         }
 
@@ -58,7 +68,7 @@ impl parser::Parser {
 
         match self.current_token().kind {
             TokenKind::SC => {
-                if auto || imut {
+                if auto || imut || dynm {
                     return Err(FrontendError::MissingInitializer(name));
                 }
 
@@ -68,6 +78,7 @@ impl parser::Parser {
                     name,
                     expr: None,
                     imut,
+                    dynm,
                     init: false,
                     typ,
                 }))
@@ -84,6 +95,7 @@ impl parser::Parser {
                     name,
                     expr: Some(result),
                     imut,
+                    dynm,
                     init: true,
                     typ,
                 }))
