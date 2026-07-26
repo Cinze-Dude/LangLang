@@ -7,7 +7,10 @@ pub type RuntimeValueResult = RuntimeResult<RuntimeValue>;
 pub enum RuntimeError {
     UndefinedVariable(String),
     DivisionByZero,
+    ModuloByZero,
     FactorialOverflow,
+    FactorialNeg,
+    FactorialFract,
 
     TypeMismatch { expected: String, found: String },
 
@@ -31,6 +34,10 @@ impl std::fmt::Display for RuntimeError {
 
             RuntimeError::DivisionByZero => {
                 write!(f, "division by zero")
+            }
+
+            RuntimeError::ModuloByZero => {
+                write!(f, "modulo by zero")
             }
 
             RuntimeError::TypeMismatch { expected, found } => {
@@ -59,6 +66,14 @@ impl std::fmt::Display for RuntimeError {
 
             RuntimeError::FactorialOverflow => {
                 write!(f, "factorial overflow")
+            }
+
+            RuntimeError::FactorialNeg => {
+                write!(f, "factorial negative")
+            }
+
+            RuntimeError::FactorialFract => {
+                write!(f, "factorial fraction")
             }
 
             RuntimeError::NotImplemented => {
