@@ -4,8 +4,9 @@ use crate::{
     },
     runtime::{
         binops::{
-            eval_bin_add, eval_bin_and, eval_bin_div, eval_bin_mod, eval_bin_mul, eval_bin_or,
-            eval_bin_pow, eval_bin_sub, eval_bin_xor, fact,
+            eval_bin_add, eval_bin_and, eval_bin_cmp, eval_bin_div, eval_bin_eq, eval_bin_ls,
+            eval_bin_mod, eval_bin_mul, eval_bin_neq, eval_bin_or, eval_bin_pow, eval_bin_rs,
+            eval_bin_sub, eval_bin_xor, fact,
         },
         errors::{RuntimeError, RuntimeResult, RuntimeValueResult},
         values::{Interpreter, RuntimeType, RuntimeValue},
@@ -121,7 +122,7 @@ impl Interpreter {
                 }
 
                 if n.fract() != 0.0 {
-                    return Err(RuntimeError::FactorialFract);
+                    return Err(RuntimeError::UnexpectedFract);
                 }
 
                 Ok(RuntimeValue::Number(fact(n as i32).unwrap() as f64))
@@ -136,19 +137,27 @@ impl Interpreter {
         left: &Expr,
         right: &Expr,
     ) -> RuntimeValueResult {
-        let l = self.eval_expr(left)?;
-        let r = self.eval_expr(right)?;
-        match (op, l, r) {
-            (BinaryOperator::PLUS, x, y) => eval_bin_add(x, y),
-            (BinaryOperator::MINUS, x, y) => eval_bin_sub(x, y),
-            (BinaryOperator::TIMES, x, y) => eval_bin_mul(x, y),
-            (BinaryOperator::SLASH, x, y) => eval_bin_div(x, y),
-            (BinaryOperator::MOD, x, y) => eval_bin_mod(x, y),
-            (BinaryOperator::POW, x, y) => eval_bin_pow(x, y),
-            (BinaryOperator::AND, x, y) => eval_bin_and(x, y),
-            (BinaryOperator::OR, x, y) => eval_bin_or(x, y),
-            (BinaryOperator::XOR, x, y) => eval_bin_xor(x, y),
-            _ => Err(RuntimeError::NotImplemented),
+        let x = self.eval_expr(left)?;
+        let y = self.eval_expr(right)?;
+        match op {
+            BinaryOperator::PLUS => eval_bin_add(x, y),
+            BinaryOperator::MINUS => eval_bin_sub(x, y),
+            BinaryOperator::TIMES => eval_bin_mul(x, y),
+            BinaryOperator::SLASH => eval_bin_div(x, y),
+            BinaryOperator::MOD => eval_bin_mod(x, y),
+            BinaryOperator::POW => eval_bin_pow(x, y),
+            BinaryOperator::AND => eval_bin_and(x, y),
+            BinaryOperator::OR => eval_bin_or(x, y),
+            BinaryOperator::XOR => eval_bin_xor(x, y),
+            BinaryOperator::EQUALS => eval_bin_eq(x, y),
+            BinaryOperator::NEQUAL => eval_bin_neq(x, y),
+            BinaryOperator::LS => eval_bin_ls(x, y),
+            BinaryOperator::RS => eval_bin_rs(x, y),
+            BinaryOperator::GT => eval_bin_cmp(x, y, "gt"),
+            BinaryOperator::GE => eval_bin_cmp(x, y, "ge"),
+            BinaryOperator::LT => eval_bin_cmp(x, y, "lt"),
+            BinaryOperator::LE => eval_bin_cmp(x, y, "le"),
+            BinaryOperator::TEQUAL => Err(RuntimeError::NotImplemented),
         }
     }
 

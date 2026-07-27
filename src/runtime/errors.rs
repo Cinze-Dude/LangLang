@@ -10,7 +10,7 @@ pub enum RuntimeError {
     ModuloByZero,
     FactorialOverflow,
     FactorialNeg,
-    FactorialFract,
+    UnexpectedFract,
 
     TypeMismatch { expected: String, found: String },
 
@@ -72,8 +72,8 @@ impl std::fmt::Display for RuntimeError {
                 write!(f, "factorial negative")
             }
 
-            RuntimeError::FactorialFract => {
-                write!(f, "factorial fraction")
+            RuntimeError::UnexpectedFract => {
+                write!(f, "did not expect fraction")
             }
 
             RuntimeError::NotImplemented => {

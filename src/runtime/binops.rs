@@ -6,9 +6,23 @@ use crate::runtime::{
 pub fn fact(num: i32) -> Result<i32, RuntimeError> {
     match num {
         0 => Ok(1),
-        12.. => Err(RuntimeError::FactorialOverflow),
+        13.. => Err(RuntimeError::FactorialOverflow),
         1.. => Ok(fact(num - 1)? * num),
         _ => Err(RuntimeError::InvalidOperand),
+    }
+}
+
+fn number_result(n: f64) -> RuntimeValue {
+    if n.is_nan() {
+        RuntimeValue::NaN
+    } else if n.is_infinite() {
+        if n.is_sign_positive() {
+            RuntimeValue::Infinity
+        } else {
+            RuntimeValue::NegInfinity
+        }
+    } else {
+        RuntimeValue::Number(n)
     }
 }
 
@@ -77,7 +91,7 @@ pub fn eval_bin_add(x: RuntimeValue, y: RuntimeValue) -> RuntimeValueResult {
             Ok(RuntimeValue::String(format!("{}{}", r, h)))
         }
 
-        (RuntimeValue::Number(n), RuntimeValue::Number(m)) => Ok(RuntimeValue::Number(n + m)),
+        (RuntimeValue::Number(n), RuntimeValue::Number(m)) => Ok(number_result(n + m)),
 
         _ => Err(RuntimeError::InvalidOperand),
     }
@@ -99,7 +113,7 @@ pub fn eval_bin_sub(x: RuntimeValue, y: RuntimeValue) -> RuntimeValueResult {
 
         (RuntimeValue::NaN, _) | (_, RuntimeValue::NaN) => Ok(RuntimeValue::NaN),
 
-        (RuntimeValue::Number(n), RuntimeValue::Number(m)) => Ok(RuntimeValue::Number(n - m)),
+        (RuntimeValue::Number(n), RuntimeValue::Number(m)) => Ok(number_result(n - m)),
 
         // Vector - value: remove first matching element
         (RuntimeValue::Vector(mut v, ty), value) => {
@@ -151,19 +165,19 @@ pub fn eval_bin_mul(x: RuntimeValue, y: RuntimeValue) -> RuntimeValueResult {
 
         (RuntimeValue::NaN, _) | (_, RuntimeValue::NaN) => Ok(RuntimeValue::NaN),
 
-        (RuntimeValue::Number(n), RuntimeValue::Number(m)) => Ok(RuntimeValue::Number(n * m)),
+        (RuntimeValue::Number(n), RuntimeValue::Number(m)) => Ok(number_result(n * m)),
 
         // Vector scaling
         (RuntimeValue::Vector(v, ty), RuntimeValue::Number(scale)) => Ok(RuntimeValue::Vector(
             v.into_iter()
-                .map(|value| eval_bin_div(value, RuntimeValue::Number(scale)))
+                .map(|value| eval_bin_mul(value, RuntimeValue::Number(scale)))
                 .collect::<Result<Vec<_>, _>>()?,
             ty,
         )),
 
         (RuntimeValue::Number(scale), RuntimeValue::Vector(v, ty)) => Ok(RuntimeValue::Vector(
             v.into_iter()
-                .map(|value| eval_bin_div(value, RuntimeValue::Number(scale)))
+                .map(|value| eval_bin_mul(value, RuntimeValue::Number(scale)))
                 .collect::<Result<Vec<_>, _>>()?,
             ty,
         )),
@@ -174,12 +188,15 @@ pub fn eval_bin_mul(x: RuntimeValue, y: RuntimeValue) -> RuntimeValueResult {
 
 pub fn eval_bin_div(x: RuntimeValue, y: RuntimeValue) -> RuntimeValueResult {
     match (x, y) {
-        (_, RuntimeValue::Number(0.0)) => Err(RuntimeError::DivisionByZero),
-
         (RuntimeValue::Infinity, RuntimeValue::Infinity)
         | (RuntimeValue::NegInfinity, RuntimeValue::NegInfinity)
         | (RuntimeValue::Infinity, RuntimeValue::NegInfinity)
         | (RuntimeValue::NegInfinity, RuntimeValue::Infinity) => Ok(RuntimeValue::NaN),
+
+        (RuntimeValue::Infinity, RuntimeValue::Number(0.0))
+        | (RuntimeValue::NegInfinity, RuntimeValue::Number(0.0)) => {
+            Err(RuntimeError::DivisionByZero)
+        }
 
         (RuntimeValue::Infinity, RuntimeValue::Number(n)) => {
             if n > 0.0 {
@@ -202,7 +219,9 @@ pub fn eval_bin_div(x: RuntimeValue, y: RuntimeValue) -> RuntimeValueResult {
 
         (RuntimeValue::NaN, _) | (_, RuntimeValue::NaN) => Ok(RuntimeValue::NaN),
 
-        (RuntimeValue::Number(n), RuntimeValue::Number(m)) => Ok(RuntimeValue::Number(n / m)),
+        (_, RuntimeValue::Number(0.0)) => Err(RuntimeError::DivisionByZero),
+
+        (RuntimeValue::Number(n), RuntimeValue::Number(m)) => Ok(number_result(n / m)),
 
         // Vector scaling
         (RuntimeValue::Vector(v, ty), RuntimeValue::Number(scale)) => Ok(RuntimeValue::Vector(
@@ -227,7 +246,7 @@ pub fn eval_bin_mod(x: RuntimeValue, y: RuntimeValue) -> RuntimeValueResult {
         (RuntimeValue::Infinity, _) | (RuntimeValue::NegInfinity, _) => Ok(RuntimeValue::NaN),
 
         // number % number
-        (RuntimeValue::Number(n), RuntimeValue::Number(m)) => Ok(RuntimeValue::Number(n % m)),
+        (RuntimeValue::Number(n), RuntimeValue::Number(m)) => Ok(number_result(n % m)),
 
         // vector % number
         (RuntimeValue::Vector(v, ty), RuntimeValue::Number(div)) => Ok(RuntimeValue::Vector(
@@ -246,9 +265,7 @@ pub fn eval_bin_pow(x: RuntimeValue, y: RuntimeValue) -> RuntimeValueResult {
         (RuntimeValue::NaN, _) | (_, RuntimeValue::NaN) => Ok(RuntimeValue::NaN),
 
         // number ^ number
-        (RuntimeValue::Number(n), RuntimeValue::Number(exp)) => {
-            Ok(RuntimeValue::Number(n.powf(exp)))
-        }
+        (RuntimeValue::Number(n), RuntimeValue::Number(exp)) => Ok(number_result(n.powf(exp))),
 
         (RuntimeValue::Infinity, RuntimeValue::Infinity) => Ok(RuntimeValue::Infinity),
 
@@ -274,7 +291,7 @@ pub fn eval_bin_and(x: RuntimeValue, y: RuntimeValue) -> RuntimeValueResult {
         (RuntimeValue::Bool(a), RuntimeValue::Bool(b)) => Ok(RuntimeValue::Bool(a && b)),
 
         (RuntimeValue::Number(a), RuntimeValue::Number(b)) => {
-            Ok(RuntimeValue::Number(((a as i64) & (b as i64)) as f64))
+            Ok(number_result(((a as i64) & (b as i64)) as f64))
         }
 
         _ => Err(RuntimeError::InvalidOperand),
@@ -286,7 +303,7 @@ pub fn eval_bin_or(x: RuntimeValue, y: RuntimeValue) -> RuntimeValueResult {
         (RuntimeValue::Bool(a), RuntimeValue::Bool(b)) => Ok(RuntimeValue::Bool(a || b)),
 
         (RuntimeValue::Number(a), RuntimeValue::Number(b)) => {
-            Ok(RuntimeValue::Number(((a as i64) | (b as i64)) as f64))
+            Ok(number_result(((a as i64) | (b as i64)) as f64))
         }
 
         _ => Err(RuntimeError::InvalidOperand),
@@ -298,9 +315,64 @@ pub fn eval_bin_xor(x: RuntimeValue, y: RuntimeValue) -> RuntimeValueResult {
         (RuntimeValue::Bool(a), RuntimeValue::Bool(b)) => Ok(RuntimeValue::Bool(a ^ b)),
 
         (RuntimeValue::Number(a), RuntimeValue::Number(b)) => {
-            Ok(RuntimeValue::Number(((a as i64) ^ (b as i64)) as f64))
+            Ok(number_result(((a as i64) ^ (b as i64)) as f64))
         }
 
+        _ => Err(RuntimeError::InvalidOperand),
+    }
+}
+
+pub fn eval_bin_eq(x: RuntimeValue, y: RuntimeValue) -> RuntimeValueResult {
+    if x.runtime_type() == y.runtime_type() {
+        Ok(RuntimeValue::Bool(x.equals(&y)))
+    } else {
+        Err(RuntimeError::TypeMismatch {
+            expected: x.runtime_type().stringify(),
+            found: y.runtime_type().stringify(),
+        })
+    }
+}
+
+pub fn eval_bin_neq(x: RuntimeValue, y: RuntimeValue) -> RuntimeValueResult {
+    if x.runtime_type() == y.runtime_type() {
+        Ok(RuntimeValue::Bool(!x.equals(&y)))
+    } else {
+        Err(RuntimeError::TypeMismatch {
+            expected: x.runtime_type().stringify(),
+            found: y.runtime_type().stringify(),
+        })
+    }
+}
+
+pub fn eval_bin_ls(x: RuntimeValue, y: RuntimeValue) -> RuntimeValueResult {
+    match (x, y) {
+        (RuntimeValue::Number(a), RuntimeValue::Number(b)) => match (a.fract(), b.fract()) {
+            (0.0, 0.0) => Ok(number_result((a as i32 * 2_i32.pow(b as u32)) as f64)),
+            _ => Err(RuntimeError::UnexpectedFract),
+        },
+        _ => Err(RuntimeError::InvalidOperand),
+    }
+}
+
+pub fn eval_bin_rs(x: RuntimeValue, y: RuntimeValue) -> RuntimeValueResult {
+    match (x, y) {
+        (RuntimeValue::Number(a), RuntimeValue::Number(b)) => match (a.fract(), b.fract()) {
+            (0.0, 0.0) => Ok(number_result((a as i32 / 2_i32.pow(b as u32)) as f64)),
+            _ => Err(RuntimeError::UnexpectedFract),
+        },
+        _ => Err(RuntimeError::InvalidOperand),
+    }
+}
+
+pub fn eval_bin_cmp(x: RuntimeValue, y: RuntimeValue, mode: &str) -> RuntimeValueResult {
+    match (x, y) {
+        (RuntimeValue::Number(a), RuntimeValue::Number(b)) => Ok(RuntimeValue::Bool(match mode {
+            "lt" => a < b,
+            "le" => a <= b,
+            "gt" => a > b,
+            "ge" => a >= b,
+            _ => false,
+        })),
         _ => Err(RuntimeError::InvalidOperand),
     }
 }
