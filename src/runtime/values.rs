@@ -52,6 +52,7 @@ pub enum RuntimeType {
 
     Func,
     NativeFunction,
+    Block,
 
     Union(Vec<RuntimeType>),
 }
@@ -67,6 +68,8 @@ impl RuntimeType {
             RuntimeType::NaN => "NaN".into(),
             RuntimeType::Bool => "bool".into(),
             RuntimeType::Rune => "rune".into(),
+
+            RuntimeType::Block => "block".into(),
 
             RuntimeType::Vector(ty) => {
                 format!("[{}]", ty.stringify())

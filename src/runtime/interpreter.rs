@@ -1,6 +1,6 @@
 use crate::{
     frontend::ast::{
-        BinaryOperator, Expr, Literal, PostfixOperator, PrefixOperator, Program, Stmt,
+        BinaryOperator, Expr, Literal, PostfixOperator, PrefixOperator, Program, Stmt, Type,
     },
     runtime::{
         binops::{
@@ -8,7 +8,7 @@ use crate::{
             eval_bin_mod, eval_bin_mul, eval_bin_neq, eval_bin_or, eval_bin_pow, eval_bin_rs,
             eval_bin_sub, eval_bin_xor, fact,
         },
-        errors::{RuntimeError, RuntimeResult, RuntimeValueResult},
+        errors::{RuntimeError, RuntimeResult, RuntimeTypeResult, RuntimeValueResult},
         values::{Interpreter, RuntimeType, RuntimeValue},
     },
 };
@@ -24,6 +24,34 @@ impl Interpreter {
         match stmt {
             Stmt::Expr(e) => self.eval_expr(&e),
             _ => Err(RuntimeError::NotImplemented),
+        }
+    }
+
+    fn eval_type(&self, ty: &Type) -> RuntimeTypeResult {
+        match ty {
+            Type::Block => Ok(RuntimeType::Block),
+            Type::Bool => Ok(RuntimeType::Bool),
+            Type::Inferred => Err(RuntimeError::InvalidType),
+            Type::Map(k, v) => Ok(RuntimeType::Map(
+                Box::new(self.eval_type(k)?),
+                Box::new(self.eval_type(v)?),
+            )),
+            Type::Null => Ok(RuntimeType::Null),
+            Type::Number => Ok(RuntimeType::Number),
+            Type::Rune => Ok(RuntimeType::Rune),
+            Type::String => Ok(RuntimeType::String),
+            Type::Symbol(_) => Err(RuntimeError::InvalidType),
+            Type::Tuple(v, _) => Ok(RuntimeType::Tuple(
+                v.iter()
+                    .map(|t| self.eval_type(t))
+                    .collect::<Result<Vec<_>, _>>()?,
+            )),
+            Type::Union(v) => Ok(RuntimeType::Tuple(
+                v.iter()
+                    .map(|t| self.eval_type(t))
+                    .collect::<Result<Vec<_>, _>>()?,
+            )),
+            Type::Vector(t) => Ok(RuntimeType::Vector(Box::new(self.eval_type(t)?))),
         }
     }
 

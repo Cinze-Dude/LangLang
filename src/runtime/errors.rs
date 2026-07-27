@@ -1,7 +1,8 @@
-use crate::runtime::values::RuntimeValue;
+use crate::runtime::values::{RuntimeType, RuntimeValue};
 
 pub type RuntimeResult<T> = Result<T, RuntimeError>;
 pub type RuntimeValueResult = RuntimeResult<RuntimeValue>;
+pub type RuntimeTypeResult = RuntimeResult<RuntimeType>;
 
 #[derive(Debug, Clone)]
 pub enum RuntimeError {
@@ -19,6 +20,8 @@ pub enum RuntimeError {
     NotCallable,
     NumberError,
     InfinityError,
+
+    InvalidType,
 
     NotImplemented,
 
@@ -74,6 +77,10 @@ impl std::fmt::Display for RuntimeError {
 
             RuntimeError::UnexpectedFract => {
                 write!(f, "did not expect fraction")
+            }
+
+            RuntimeError::InvalidType => {
+                write!(f, "invalid type")
             }
 
             RuntimeError::NotImplemented => {
