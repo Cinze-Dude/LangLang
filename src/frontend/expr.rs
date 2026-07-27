@@ -149,19 +149,17 @@ impl Parser {
     pub fn parse_until(&mut self, expr: Box<Expr>, bp: BindingPower) -> ResultExpr {
         self.eat();
 
+        let ae = self.consume(TokenKind::GT);
+
         let right = self.parse_expr(bp)?;
 
         let mut step = Box::new(Expr::Literal(Literal::Number(1.0)));
 
-        if self.current_token().kind == TokenKind::SPAREN {
-            self.eat();
-
+        if self.consume(TokenKind::COLON) {
             step = self.parse_expr(bp)?;
-
-            self.expect(TokenKind::CPAREN)?;
         }
 
-        Ok(Box::new(Expr::Range(expr, right, step)))
+        Ok(Box::new(Expr::Range(expr, right, step, ae)))
     }
 
     pub fn parse_postfix(&mut self, expr: Box<Expr>, _: BindingPower) -> ResultExpr {

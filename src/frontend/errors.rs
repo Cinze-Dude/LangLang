@@ -12,7 +12,6 @@ pub enum FrontendError {
     },
     InvalidType(String),
 
-    InvalidExpression(String),
     InvalidSyntax(String),
 
     InvalidNumber(String),
@@ -39,10 +38,6 @@ impl std::fmt::Display for FrontendError {
 
             FrontendError::InvalidType(n) => {
                 write!(f, "invalid type '{}'", n)
-            }
-
-            FrontendError::InvalidExpression(n) => {
-                write!(f, "invalid expression '{}'", n)
             }
 
             FrontendError::InvalidSyntax(n) => {

@@ -195,8 +195,8 @@ pub enum Expr {
     Block(Vec<Stmt>),
     Convert(Box<Expr>, Type),
     Member(Box<Expr>, String),
-    Range(Box<Expr>, Box<Expr>, Box<Expr>),
-    Vector(Vec<Expr>),              // Only 1 type: [1, 2, 3, 4] [number]
+    Range(Box<Expr>, Box<Expr>, Box<Expr>, bool), // allow-end
+    Vector(Vec<Expr>),                            // Only 1 type: [1, 2, 3, 4] [number]
     Tuple(Vec<Expr>), // Many Types: {1, "cat", null, true} {} or {number || string} *the type is Type::Array*
     Map(Vec<(Expr, Option<Expr>)>), // A dictionary {number: rune}
     Index(Box<Expr>, Box<Expr>),

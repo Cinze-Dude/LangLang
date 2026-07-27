@@ -22,7 +22,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             let src = src.trim();
 
-            if src == "exit" || src == "quit" {
+            if src == "exit()" || src == "quit()" {
                 break;
             }
 

@@ -165,6 +165,6 @@ pub static KEYWORDS: LazyLock<HashMap<&'static str, TokenKind>> = LazyLock::new(
         ("null", TokenKind::NULL),
         ("inf", TokenKind::INF),
         ("of", TokenKind::OF),
-        ("NaN", TokenKind::NAN),
+        ("nan", TokenKind::NAN),
     ])
 });

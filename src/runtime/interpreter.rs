@@ -161,6 +161,41 @@ impl Interpreter {
         }
     }
 
+    fn eval_range(
+        &mut self,
+        st: &Box<Expr>,
+        ed: &Box<Expr>,
+        sp: &Box<Expr>,
+        ae: bool,
+    ) -> RuntimeValueResult {
+        let beg = self.eval_expr(st)?;
+        let end = self.eval_expr(ed)?;
+        let stp = self.eval_expr(sp)?;
+
+        match (beg, end, stp) {
+            (RuntimeValue::Number(b), RuntimeValue::Number(e), RuntimeValue::Number(s)) => {
+                if b.fract() != 0.0 || e.fract() != 0.0 || e.fract() != 0.0 {
+                    return Err(RuntimeError::UnexpectedFract);
+                }
+
+                let mut elems = Vec::new();
+                for i in b as i32..e as i32 {
+                    if i % s as i32 == 0 {
+                        elems.push(RuntimeValue::Number(i as f64));
+                    }
+                }
+
+                if ae {
+                    elems.push(RuntimeValue::Number(e));
+                }
+
+                let l = elems.len();
+                Ok(RuntimeValue::Tuple(elems, l))
+            }
+            _ => Err(RuntimeError::InvalidOperand),
+        }
+    }
+
     fn eval_expr(&mut self, expr: &Expr) -> RuntimeValueResult {
         match expr {
             Expr::Literal(lit) => self.eval_literal(lit),
@@ -170,6 +205,7 @@ impl Interpreter {
             Expr::Prefix(op, val) => self.eval_unary(op, val),
             Expr::Postfix(op, val) => self.eval_postfix(op, val),
             Expr::Binary(left, op, right) => self.eval_binary(op, left, right),
+            Expr::Range(start, end, step, ae) => self.eval_range(start, end, step, *ae),
             _ => Err(RuntimeError::NotImplemented),
         }
     }
