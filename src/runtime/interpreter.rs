@@ -103,37 +103,48 @@ impl Interpreter {
     }
 
     fn eval_unary(&mut self, op: &PrefixOperator, value: &Expr) -> RuntimeValueResult {
-        let val = self.eval_expr(value)?;
-        match val {
-            RuntimeValue::Number(x) => Ok(RuntimeValue::Number(match op {
-                PrefixOperator::SIN => x.sin(),
-                PrefixOperator::COS => x.cos(),
-                PrefixOperator::TAN => x.tan(),
-                PrefixOperator::ASIN => x.asin(),
-                PrefixOperator::ACOS => x.acos(),
-                PrefixOperator::ATAN => x.atan(),
-                PrefixOperator::MINUS => -x,
-                PrefixOperator::SQRT => x.sqrt(),
-                _ => x,
-            })),
-            RuntimeValue::Infinity => Ok(match op {
-                PrefixOperator::ATAN => RuntimeValue::Number(1.57079632679),
-                PrefixOperator::MINUS => RuntimeValue::NegInfinity,
-                PrefixOperator::SQRT => RuntimeValue::Infinity,
-                _ => RuntimeValue::Number(0.0),
-            }),
-            RuntimeValue::NegInfinity => match op {
-                PrefixOperator::ASIN | PrefixOperator::ACOS => Ok(RuntimeValue::NaN),
-                PrefixOperator::ATAN => Ok(RuntimeValue::Number(-1.57079632679)),
-                PrefixOperator::MINUS => Ok(RuntimeValue::Infinity),
-                PrefixOperator::SQRT => Err(RuntimeError::InfinityError),
-                _ => Ok(RuntimeValue::Number(0.0)),
-            },
-            RuntimeValue::NaN => Ok(RuntimeValue::NaN),
-            RuntimeValue::Bool(x) => Ok(RuntimeValue::Bool(!x)),
-            e => Err(RuntimeError::Custom(format!(
-                "Unary Expressions cannot be {:?}",
-                e
+        use std::f64::consts::FRAC_PI_2;
+
+        let value = self.eval_expr(value)?;
+
+        match (op, value) {
+            // Logical
+            (PrefixOperator::NOT, RuntimeValue::Bool(x)) => Ok(RuntimeValue::Bool(!x)),
+            (PrefixOperator::NOT, RuntimeValue::Null)
+            | (PrefixOperator::NOT, RuntimeValue::NaN) => Ok(RuntimeValue::Bool(true)),
+            (PrefixOperator::NOT, _) => Ok(RuntimeValue::Bool(false)),
+
+            // Number
+            (PrefixOperator::SIN, RuntimeValue::Number(x)) => Ok(RuntimeValue::Number(x.sin())),
+            (PrefixOperator::COS, RuntimeValue::Number(x)) => Ok(RuntimeValue::Number(x.cos())),
+            (PrefixOperator::TAN, RuntimeValue::Number(x)) => Ok(RuntimeValue::Number(x.tan())),
+            (PrefixOperator::ASIN, RuntimeValue::Number(x)) => Ok(RuntimeValue::Number(x.asin())),
+            (PrefixOperator::ACOS, RuntimeValue::Number(x)) => Ok(RuntimeValue::Number(x.acos())),
+            (PrefixOperator::ATAN, RuntimeValue::Number(x)) => Ok(RuntimeValue::Number(x.atan())),
+            (PrefixOperator::SQRT, RuntimeValue::Number(x)) => Ok(RuntimeValue::Number(x.sqrt())),
+            (PrefixOperator::MINUS, RuntimeValue::Number(x)) => Ok(RuntimeValue::Number(-x)),
+
+            // +∞
+            (PrefixOperator::ATAN, RuntimeValue::Infinity) => Ok(RuntimeValue::Number(FRAC_PI_2)),
+            (PrefixOperator::MINUS, RuntimeValue::Infinity) => Ok(RuntimeValue::NegInfinity),
+            (PrefixOperator::SQRT, RuntimeValue::Infinity) => Ok(RuntimeValue::Infinity),
+            (_, RuntimeValue::Infinity) => Ok(RuntimeValue::NaN),
+
+            // -∞
+            (PrefixOperator::ATAN, RuntimeValue::NegInfinity) => {
+                Ok(RuntimeValue::Number(-FRAC_PI_2))
+            }
+            (PrefixOperator::MINUS, RuntimeValue::NegInfinity) => Ok(RuntimeValue::Infinity),
+            (PrefixOperator::SQRT, RuntimeValue::NegInfinity) => Err(RuntimeError::InfinityError),
+            (_, RuntimeValue::NegInfinity) => Ok(RuntimeValue::NaN),
+
+            // NaN propagates
+            (_, RuntimeValue::NaN) => Ok(RuntimeValue::NaN),
+
+            // Everything else is invalid
+            (op, value) => Err(RuntimeError::Custom(format!(
+                "Unary operator {:?} cannot be applied to {:?}",
+                op, value
             ))),
         }
     }
