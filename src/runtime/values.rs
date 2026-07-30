@@ -39,9 +39,6 @@ pub enum RuntimeType {
 
     String,
     Number,
-    Infinity,
-    NegInfinity,
-    NaN,
     Bool,
     Rune,
 
@@ -63,9 +60,6 @@ impl RuntimeType {
             RuntimeType::Null => "null".into(),
             RuntimeType::String => "string".into(),
             RuntimeType::Number => "number".into(),
-            RuntimeType::Infinity => "infinity".into(),
-            RuntimeType::NegInfinity => "negative infinity".into(),
-            RuntimeType::NaN => "NaN".into(),
             RuntimeType::Bool => "bool".into(),
             RuntimeType::Rune => "rune".into(),
 
@@ -222,9 +216,9 @@ impl RuntimeValue {
             RuntimeValue::Number(_) => RuntimeType::Number,
             RuntimeValue::Bool(_) => RuntimeType::Bool,
             RuntimeValue::Rune(_) => RuntimeType::Rune,
-            RuntimeValue::Infinity => RuntimeType::Infinity,
-            RuntimeValue::NegInfinity => RuntimeType::NegInfinity,
-            RuntimeValue::NaN => RuntimeType::NaN,
+            RuntimeValue::Infinity => RuntimeType::Number,
+            RuntimeValue::NegInfinity => RuntimeType::Number,
+            RuntimeValue::NaN => RuntimeType::Number,
 
             RuntimeValue::Vector(_, ty) => RuntimeType::Vector(Box::new(ty.clone())),
 
