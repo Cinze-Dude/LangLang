@@ -47,7 +47,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             let mut inter = values::Interpreter::new();
 
-            match inter.eval_program(ast) {
+            match inter.eval_program(&ast) {
                 Ok(value) => println!("value: {:?}", value),
                 Err(err) => eprintln!("Runtime error: {:?}", err),
             }
@@ -64,7 +64,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("AST: {:#?}", ast);
 
         let mut inter = values::Interpreter::new();
-        let value = inter.eval_program(ast)?;
+        let value = inter.eval_program(&ast)?;
 
         println!("value: {:?}", value);
     }

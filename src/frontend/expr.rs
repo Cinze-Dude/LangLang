@@ -195,14 +195,16 @@ impl Parser {
     }
 
     pub fn parse_map_expr(&mut self, first_key: Expr) -> ResultExpr {
-        let mut pairs = Vec::new();
+        let mut pairs: Vec<(Expr, Option<Expr>)> = Vec::new();
         let mut key = first_key;
 
         loop {
-            self.expect(TokenKind::COLON)?;
-
-            let value = *self.parse_expr(BindingPower::DEFAULT)?;
-            pairs.push((key.clone(), Some(value)));
+            let value = if self.consume(TokenKind::SQRT) {
+                None
+            } else {
+                Some(*self.parse_expr(BindingPower::DEFAULT)?)
+            };
+            pairs.push((key.clone(), value));
 
             match self.current_token().kind {
                 TokenKind::COMMA => {
@@ -213,6 +215,7 @@ impl Parser {
                     }
 
                     key = *self.parse_expr(BindingPower::DEFAULT)?;
+                    self.expect(TokenKind::COLON)?;
                 }
 
                 TokenKind::CCURLY => break,
@@ -233,7 +236,7 @@ impl Parser {
 
         let first = self.parse_expr(BindingPower::DEFAULT)?;
 
-        if self.current_token().kind == TokenKind::SCURLY {
+        if self.consume(TokenKind::COLON) {
             self.parse_map_expr(*first)
         } else {
             self.parse_array_expr(*first)

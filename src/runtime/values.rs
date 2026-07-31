@@ -1,12 +1,12 @@
 use crate::{
-    frontend::ast::Expr,
+    frontend::ast::{Expr, Stmt},
     runtime::errors::{RuntimeError, RuntimeResult, RuntimeValueResult},
 };
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 #[derive(Debug, Clone)]
 pub struct Environment {
-    variables: HashMap<String, RuntimeValue>,
+    pub variables: HashMap<String, Option<RuntimeValue>>,
     parent: Option<Rc<RefCell<Environment>>>,
 }
 
@@ -24,13 +24,24 @@ impl Environment {
             parent: Some(parent),
         }
     }
+
+    pub fn get(&self, key: &str) -> Option<RuntimeValue> {
+        if let Some(value) = self.variables.get(key) {
+            return value.clone();
+        }
+
+        match &self.parent {
+            Some(parent) => parent.borrow().get(key),
+            None => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct FunctionValue {
     params: Vec<String>,
     body: Expr,
-    closure: Environment,
+    closure: Rc<RefCell<Environment>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -121,6 +132,8 @@ pub enum RuntimeValue {
     Tuple(Vec<RuntimeValue>, usize),
     Map(HashMap<RuntimeValue, RuntimeValue>),
 
+    Block(Vec<Stmt>, Rc<RefCell<Environment>>),
+
     Func(FunctionValue),
     NativeFunction(FunctionValue),
 }
@@ -177,6 +190,8 @@ impl RuntimeValue {
             RuntimeValue::NegInfinity => "negative infinity".into(),
             RuntimeValue::NaN => "NaN".into(),
 
+            RuntimeValue::Block(_, _) => "<block>".into(),
+
             RuntimeValue::Vector(values, _) => {
                 let items = values
                     .iter()
@@ -220,6 +235,8 @@ impl RuntimeValue {
             RuntimeValue::NegInfinity => RuntimeType::Number,
             RuntimeValue::NaN => RuntimeType::Number,
 
+            RuntimeValue::Block(_, _) => RuntimeType::Block,
+
             RuntimeValue::Vector(_, ty) => RuntimeType::Vector(Box::new(ty.clone())),
 
             RuntimeValue::Tuple(values, _) => {
@@ -235,20 +252,20 @@ impl RuntimeValue {
 }
 
 pub struct Interpreter {
-    env: Environment,
+    pub env: Rc<RefCell<Environment>>,
 }
 
 impl Interpreter {
     pub fn new() -> Self {
         Self {
-            env: Environment::new(),
+            env: Rc::new(RefCell::new(Environment::new())),
         }
     }
 
     pub fn get_symbol(&self, key: &str) -> RuntimeValueResult {
-        match self.env.variables.get(key) {
-            Some(value) => Ok(value.clone()),
-            None => Err(RuntimeError::UndefinedVariable(key.to_string())),
-        }
+        self.env
+            .borrow()
+            .get(key)
+            .ok_or(RuntimeError::UndefinedVariable(key.to_string()))
     }
 }

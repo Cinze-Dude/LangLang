@@ -1,3 +1,5 @@
+use std::{cell::RefCell, rc::Rc};
+
 use crate::{
     frontend::ast::{
         BinaryOperator, Expr, Literal, PostfixOperator, PrefixOperator, Program, Stmt, Type,
@@ -9,20 +11,67 @@ use crate::{
             eval_bin_sub, eval_bin_xor, fact,
         },
         errors::{RuntimeError, RuntimeResult, RuntimeTypeResult, RuntimeValueResult},
-        values::{Interpreter, RuntimeType, RuntimeValue},
+        values::{Environment, Interpreter, RuntimeType, RuntimeValue},
     },
 };
 
+fn eval_block_value(int: &mut Interpreter, value: RuntimeValue) -> RuntimeValueResult {
+    match value {
+        RuntimeValue::Block(body, env) => int.eval_block(&body, env),
+        _ => unreachable!(),
+    }
+}
+
 impl Interpreter {
-    pub fn eval_program(&mut self, program: Program) -> RuntimeValueResult {
+    pub fn eval_program(&mut self, program: &Program) -> RuntimeValueResult {
         match program {
-            Program(s) => self.eval_stmt(s[0].clone()),
+            Program(stmts) => {
+                let mut result = RuntimeValue::Null;
+
+                for stmt in stmts {
+                    result = self.eval_stmt(stmt)?;
+                }
+
+                Ok(result)
+            }
         }
     }
 
-    fn eval_stmt(&mut self, stmt: Stmt) -> RuntimeValueResult {
+    pub fn eval_stmt(&mut self, stmt: &Stmt) -> RuntimeValueResult {
         match stmt {
-            Stmt::Expr(e) => self.eval_expr(&e),
+            Stmt::Expr(e) => self.eval_expr(e),
+            Stmt::If {
+                condition,
+                then_branch,
+                elifs,
+                else_branch,
+            } => {
+                if matches!(self.eval_expr(condition)?, RuntimeValue::Bool(true)) {
+                    return self.eval_expr(then_branch);
+                }
+
+                for (cond, branch) in elifs {
+                    if matches!(self.eval_expr(cond)?, RuntimeValue::Bool(true)) {
+                        return self.eval_expr(branch);
+                    }
+                }
+
+                match else_branch {
+                    Some(expr) => self.eval_expr(expr),
+                    None => Ok(RuntimeValue::Null),
+                }
+            }
+            Stmt::Var { name, expr, .. } => {
+                let value = match expr {
+                    Some(Expr::Block(b)) => Some(RuntimeValue::Block(b.clone(), self.env.clone())),
+                    None => None,
+                    Some(e) => Some(self.eval_expr(e)?),
+                };
+
+                self.env.borrow_mut().variables.insert(name.clone(), value);
+
+                Ok(RuntimeValue::Null)
+            }
             _ => Err(RuntimeError::NotImplemented),
         }
     }
@@ -289,6 +338,28 @@ impl Interpreter {
         }
     }
 
+    fn eval_block(
+        &mut self,
+        body: &Vec<Stmt>,
+        closure: Rc<RefCell<Environment>>,
+    ) -> RuntimeValueResult {
+        let previous = self.env.clone();
+
+        // enter block scope
+        self.env = Rc::new(RefCell::new(Environment::with_parent(closure)));
+
+        let mut result = RuntimeValue::Null;
+
+        for stmt in body {
+            result = self.eval_stmt(stmt)?;
+        }
+
+        // leave block scope
+        self.env = previous;
+
+        Ok(result)
+    }
+
     fn eval_expr(&mut self, expr: &Expr) -> RuntimeValueResult {
         match expr {
             Expr::Literal(lit) => self.eval_literal(lit),
@@ -300,6 +371,10 @@ impl Interpreter {
             Expr::Binary(left, op, right) => self.eval_binary(op, left, right),
             Expr::Range(start, end, step, ae) => self.eval_range(start, end, step, *ae),
             Expr::Convert(subj, ty) => self.eval_convert(subj, ty),
+            Expr::Block(stats) => {
+                let b = RuntimeValue::Block(stats.clone(), self.env.clone());
+                eval_block_value(self, b)
+            }
             _ => Err(RuntimeError::NotImplemented),
         }
     }
