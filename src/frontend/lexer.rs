@@ -1,4 +1,5 @@
 use crate::frontend::tokens::{self, TokenKind};
+use colored::Colorize;
 use regex::Regex;
 
 pub type RegexHandler = fn(&mut Lexer, &Regex);
@@ -73,7 +74,7 @@ impl Lexer {
             }
 
             if !matched {
-                panic!(
+                eprintln!(
                     "Lexer Error: error on line {} near '{}'",
                     self.line,
                     self.remainder()
@@ -140,11 +141,14 @@ fn rune_handler(lex: &mut Lexer, regex: &Regex) {
     let inner = &text[1..text.len() - 1];
 
     if inner.chars().count() > 1 {
-        panic!(
-            "Lexer Error: Rune near {}:{} contains {} characters while runes cannot contain more than one character",
-            lex.line,
-            lex.pos,
-            inner.chars().count()
+        eprintln!(
+            "{}",
+            format!(
+                "Lexer Error: Rune near {}:{} contains {} characters while runes cannot contain more than one character",
+                lex.line,
+                lex.pos,
+                inner.chars().count()
+            ).red()
         );
     }
 

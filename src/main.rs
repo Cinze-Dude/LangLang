@@ -1,5 +1,8 @@
-use std::fs;
-use std::io::{self, Write};
+use colored::Colorize;
+use std::{
+    fs,
+    io::{self, Write},
+};
 
 use crate::{
     frontend::{lexer, parser},
@@ -13,6 +16,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let repl = true;
 
     if repl {
+        println!("STARTING LANGUAGE REPL");
         loop {
             print!("> ");
             io::stdout().flush()?;
@@ -38,18 +42,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let ast = match parser.parse() {
                 Ok(ast) => ast,
                 Err(err) => {
-                    eprintln!("Frontend error: {:?}", err);
+                    eprintln!("{}", format!("Frontend error: {:?}", err).red());
                     continue;
                 }
             };
 
-            println!("AST: {:#?}", ast);
-
             let mut inter = values::Interpreter::new();
 
             match inter.eval_program(&ast) {
-                Ok(value) => println!("value: {:?}", value),
-                Err(err) => eprintln!("Runtime error: {:?}", err),
+                Ok(value) => println!("{}", format!("{:?}", value).bright_green()),
+                Err(err) => eprintln!("{}", format!("Runtime error: {:?}", err).red()),
             }
         }
     } else {

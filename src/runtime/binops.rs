@@ -286,15 +286,17 @@ pub fn eval_bin_pow(x: RuntimeValue, y: RuntimeValue) -> RuntimeValueResult {
     }
 }
 
+fn is_truthy(x: RuntimeValue) -> bool {
+    match x {
+        RuntimeValue::Bool(false) | RuntimeValue::NaN | RuntimeValue::Null => false,
+        _ => true,
+    }
+}
+
 pub fn eval_bin_and(x: RuntimeValue, y: RuntimeValue) -> RuntimeValueResult {
     match (x, y) {
         (RuntimeValue::Bool(a), RuntimeValue::Bool(b)) => Ok(RuntimeValue::Bool(a && b)),
-
-        (RuntimeValue::Number(a), RuntimeValue::Number(b)) => {
-            Ok(number_result(((a as i64) & (b as i64)) as f64))
-        }
-
-        _ => Err(RuntimeError::InvalidOperand),
+        (a, b) => Ok(RuntimeValue::Bool(is_truthy(a) && is_truthy(b))),
     }
 }
 
@@ -302,11 +304,7 @@ pub fn eval_bin_or(x: RuntimeValue, y: RuntimeValue) -> RuntimeValueResult {
     match (x, y) {
         (RuntimeValue::Bool(a), RuntimeValue::Bool(b)) => Ok(RuntimeValue::Bool(a || b)),
 
-        (RuntimeValue::Number(a), RuntimeValue::Number(b)) => {
-            Ok(number_result(((a as i64) | (b as i64)) as f64))
-        }
-
-        _ => Err(RuntimeError::InvalidOperand),
+        (a, b) => Ok(RuntimeValue::Bool(is_truthy(a) || is_truthy(b))),
     }
 }
 
@@ -314,11 +312,7 @@ pub fn eval_bin_xor(x: RuntimeValue, y: RuntimeValue) -> RuntimeValueResult {
     match (x, y) {
         (RuntimeValue::Bool(a), RuntimeValue::Bool(b)) => Ok(RuntimeValue::Bool(a ^ b)),
 
-        (RuntimeValue::Number(a), RuntimeValue::Number(b)) => {
-            Ok(number_result(((a as i64) ^ (b as i64)) as f64))
-        }
-
-        _ => Err(RuntimeError::InvalidOperand),
+        (a, b) => Ok(RuntimeValue::Bool(is_truthy(a) ^ is_truthy(b))),
     }
 }
 
