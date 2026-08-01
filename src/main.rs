@@ -15,6 +15,8 @@ mod runtime;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let repl = true;
 
+    let mut inter = values::Interpreter::new();
+
     if repl {
         println!("STARTING LANGUAGE REPL");
         loop {
@@ -47,8 +49,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             };
 
-            let mut inter = values::Interpreter::new();
-
             match inter.eval_program(&ast) {
                 Ok(value) => println!("{}", format!("{:?}", value).bright_green()),
                 Err(err) => eprintln!("{}", format!("Runtime error: {:?}", err).red()),
@@ -65,7 +65,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         println!("AST: {:#?}", ast);
 
-        let mut inter = values::Interpreter::new();
         let value = inter.eval_program(&ast)?;
 
         println!("value: {:?}", value);

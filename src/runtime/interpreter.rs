@@ -8,7 +8,7 @@ use crate::{
         binops::{
             eval_bin_add, eval_bin_and, eval_bin_cmp, eval_bin_div, eval_bin_eq, eval_bin_ls,
             eval_bin_mod, eval_bin_mul, eval_bin_neq, eval_bin_or, eval_bin_pow, eval_bin_rs,
-            eval_bin_sub, eval_bin_xor, fact,
+            eval_bin_sub, eval_bin_xor, fact, is_truthy,
         },
         errors::{RuntimeError, RuntimeResult, RuntimeTypeResult, RuntimeValueResult},
         values::{Environment, Interpreter, RuntimeType, RuntimeValue},
@@ -46,12 +46,12 @@ impl Interpreter {
                 elifs,
                 else_branch,
             } => {
-                if matches!(self.eval_expr(condition)?, RuntimeValue::Bool(true)) {
+                if is_truthy(self.eval_expr(condition)?) {
                     return self.eval_expr(then_branch);
                 }
 
                 for (cond, branch) in elifs {
-                    if matches!(self.eval_expr(cond)?, RuntimeValue::Bool(true)) {
+                    if is_truthy(self.eval_expr(cond)?) {
                         return self.eval_expr(branch);
                     }
                 }

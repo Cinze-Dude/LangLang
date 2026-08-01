@@ -286,7 +286,7 @@ pub fn eval_bin_pow(x: RuntimeValue, y: RuntimeValue) -> RuntimeValueResult {
     }
 }
 
-fn is_truthy(x: RuntimeValue) -> bool {
+pub fn is_truthy(x: RuntimeValue) -> bool {
     match x {
         RuntimeValue::Bool(false) | RuntimeValue::NaN | RuntimeValue::Null => false,
         _ => true,
