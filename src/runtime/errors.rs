@@ -7,6 +7,10 @@ pub type RuntimeTypeResult = RuntimeResult<RuntimeType>;
 #[derive(Debug, Clone)]
 pub enum RuntimeError {
     UndefinedVariable(String),
+    InvalidVariableName(String),
+    InvalidVariableTarget(String),
+    VariableTargetNameMismatch { expected: String, found: String },
+    OperationOnUndefinedValue,
     DivisionByZero,
     ModuloByZero,
     FactorialOverflow,
@@ -33,6 +37,26 @@ impl std::fmt::Display for RuntimeError {
         match self {
             RuntimeError::UndefinedVariable(name) => {
                 write!(f, "undefined variable '{}'", name)
+            }
+
+            RuntimeError::OperationOnUndefinedValue => {
+                write!(f, "operation on undefined value")
+            }
+
+            RuntimeError::InvalidVariableTarget(str) => {
+                write!(f, "invalid variable target '{}'", str)
+            }
+
+            RuntimeError::VariableTargetNameMismatch { expected, found } => {
+                write!(
+                    f,
+                    "variable target name mismatch: expected '{}', found '{}'",
+                    expected, found
+                )
+            }
+
+            RuntimeError::InvalidVariableName(name) => {
+                write!(f, "invalid variable name '{}'", name)
             }
 
             RuntimeError::DivisionByZero => {

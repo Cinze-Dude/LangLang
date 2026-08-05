@@ -5,29 +5,38 @@ use crate::{
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 #[derive(Debug, Clone)]
+pub struct Variable {
+    pub name: String,
+    pub value: Option<RuntimeValue>,
+    pub used_in: Vec<String>, // for the used_in dynamic variables
+    pub is_dyn: bool,
+    pub is_mut: bool,
+}
+
+#[derive(Debug, Clone)]
 pub struct Environment {
-    pub variables: HashMap<String, Option<RuntimeValue>>,
+    pub variables: Vec<Variable>,
     parent: Option<Rc<RefCell<Environment>>>,
 }
 
 impl Environment {
     pub fn new() -> Self {
         Self {
-            variables: HashMap::new(),
+            variables: Vec::new(),
             parent: None,
         }
     }
 
     pub fn with_parent(parent: Rc<RefCell<Environment>>) -> Self {
         Self {
-            variables: HashMap::new(),
+            variables: Vec::new(),
             parent: Some(parent),
         }
     }
 
     pub fn get(&self, key: &str) -> Option<RuntimeValue> {
-        if let Some(value) = self.variables.get(key) {
-            return value.clone();
+        if let Some(variable) = self.variables.iter().find(|v| v.name == key) {
+            return variable.value.clone();
         }
 
         match &self.parent {

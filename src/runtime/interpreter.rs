@@ -2,7 +2,8 @@ use std::{cell::RefCell, rc::Rc};
 
 use crate::{
     frontend::ast::{
-        BinaryOperator, Expr, Literal, PostfixOperator, PrefixOperator, Program, Stmt, Type,
+        AssignOperator, BinaryOperator, Expr, Literal, PostfixOperator, PrefixOperator, Program,
+        Stmt, Type,
     },
     runtime::{
         binops::{
@@ -11,7 +12,7 @@ use crate::{
             eval_bin_sub, eval_bin_xor, fact, is_truthy,
         },
         errors::{RuntimeError, RuntimeResult, RuntimeTypeResult, RuntimeValueResult},
-        values::{Environment, Interpreter, RuntimeType, RuntimeValue},
+        values::{Environment, Interpreter, RuntimeType, RuntimeValue, Variable},
     },
 };
 
@@ -61,14 +62,26 @@ impl Interpreter {
                     None => Ok(RuntimeValue::Null),
                 }
             }
-            Stmt::Var { name, expr, .. } => {
+            Stmt::Var {
+                name,
+                expr,
+                imut,
+                dynm,
+                ..
+            } => {
                 let value = match expr {
                     Some(Expr::Block(b)) => Some(RuntimeValue::Block(b.clone(), self.env.clone())),
                     None => None,
                     Some(e) => Some(self.eval_expr(e)?),
                 };
 
-                self.env.borrow_mut().variables.insert(name.clone(), value);
+                self.env.borrow_mut().variables.push(Variable {
+                    name: name.clone(),
+                    value,
+                    used_in: Vec::new(),
+                    is_dyn: *dynm,
+                    is_mut: !imut,
+                });
 
                 Ok(RuntimeValue::Null)
             }
@@ -360,7 +373,42 @@ impl Interpreter {
         Ok(result)
     }
 
-    fn eval_expr(&mut self, expr: &Expr) -> RuntimeValueResult {
+    pub fn eval_assign(
+        &mut self,
+        target: &Box<Expr>,
+        op: &AssignOperator,
+        value_expr: &Box<Expr>,
+    ) -> RuntimeValueResult {
+        let name = self.get_assign_name(target)?;
+
+        let value = self.eval_expr(value_expr)?;
+
+        let old = self
+            .env
+            .borrow()
+            .variables
+            .iter()
+            .find(|v| v.name == name)
+            .and_then(|v| v.value.clone())
+            .ok_or_else(|| RuntimeError::UndefinedVariable(name.clone()))?;
+
+        let result = match op {
+            AssignOperator::ASSIGN => value,
+
+            _ => self.apply_assign_op(op, old, value)?,
+        };
+
+        let mut env = self.env.borrow_mut();
+
+        if let Some(variable) = env.variables.iter_mut().find(|v| v.name == name) {
+            variable.value = Some(result.clone());
+            Ok(result)
+        } else {
+            Err(RuntimeError::UndefinedVariable(name))
+        }
+    }
+
+    pub fn eval_expr(&mut self, expr: &Expr) -> RuntimeValueResult {
         match expr {
             Expr::Literal(lit) => self.eval_literal(lit),
             Expr::Vector(v) => self.eval_vec(v),
@@ -375,6 +423,7 @@ impl Interpreter {
                 let b = RuntimeValue::Block(stats.clone(), self.env.clone());
                 eval_block_value(self, b)
             }
+            Expr::Assign(name, op, value) => self.eval_assign(name, op, value),
             _ => Err(RuntimeError::NotImplemented),
         }
     }

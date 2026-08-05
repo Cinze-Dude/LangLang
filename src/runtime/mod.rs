@@ -1,3 +1,4 @@
+pub mod assign;
 pub mod binops;
 pub mod errors;
 pub mod interpreter;
