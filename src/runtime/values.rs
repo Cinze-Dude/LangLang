@@ -139,7 +139,7 @@ pub enum RuntimeValue {
 
     Vector(Vec<RuntimeValue>, RuntimeType),
     Tuple(Vec<RuntimeValue>, usize),
-    Map(HashMap<RuntimeValue, RuntimeValue>),
+    Map(Vec<(RuntimeValue, Option<RuntimeValue>)>),
 
     Block(Vec<Stmt>, Rc<RefCell<Environment>>),
 
@@ -178,8 +178,14 @@ impl RuntimeValue {
             (RuntimeValue::Map(a), RuntimeValue::Map(b)) => {
                 a.len() == b.len()
                     && a.iter().all(|(key_a, val_a)| {
-                        b.iter()
-                            .any(|(key_b, val_b)| key_a.equals(key_b) && val_a.equals(val_b))
+                        b.iter().any(|(key_b, val_b)| {
+                            key_a.equals(key_b)
+                                && if let (Some(val_a), Some(val_b)) = (val_a, val_b) {
+                                    val_a.equals(val_b)
+                                } else {
+                                    val_a.is_none() && val_b.is_none()
+                                }
+                        })
                     })
             }
 
@@ -222,7 +228,17 @@ impl RuntimeValue {
             RuntimeValue::Map(map) => {
                 let items = map
                     .iter()
-                    .map(|(k, v)| format!("{}: {}", k.stringify(), v.stringify()))
+                    .map(|(k, v)| {
+                        format!(
+                            "{}: {}",
+                            k.stringify(),
+                            if let Some(val) = v {
+                                val.stringify()
+                            } else {
+                                "null".into()
+                            }
+                        )
+                    })
                     .collect::<Vec<_>>();
 
                 format!("{{{}}}", items.join(", "))

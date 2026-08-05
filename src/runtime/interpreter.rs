@@ -1,4 +1,4 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::{
     frontend::ast::{
@@ -151,6 +151,20 @@ impl Interpreter {
         };
 
         Ok(RuntimeValue::Vector(values, ty))
+    }
+
+    fn eval_map(&mut self, raw_map: &[(Expr, Option<Expr>)]) -> RuntimeValueResult {
+        Ok(RuntimeValue::Map(
+            raw_map
+                .iter()
+                .map(|(k, v)| {
+                    Ok((
+                        self.eval_expr(k)?,
+                        v.as_ref().map(|e| self.eval_expr(e)).transpose()?,
+                    ))
+                })
+                .collect::<Result<Vec<_>, _>>()?,
+        ))
     }
 
     fn eval_tuple(&mut self, values: &[Expr]) -> RuntimeValueResult {
@@ -423,6 +437,7 @@ impl Interpreter {
                 let b = RuntimeValue::Block(stats.clone(), self.env.clone());
                 eval_block_value(self, b)
             }
+            Expr::Map(kvs) => self.eval_map(kvs),
             Expr::Assign(name, op, value) => self.eval_assign(name, op, value),
             _ => Err(RuntimeError::NotImplemented),
         }
