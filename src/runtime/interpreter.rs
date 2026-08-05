@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{cell::RefCell, rc::Rc};
 
 use crate::{
     frontend::ast::{
@@ -69,19 +69,33 @@ impl Interpreter {
                 dynm,
                 ..
             } => {
-                let value = match expr {
-                    Some(Expr::Block(b)) => Some(RuntimeValue::Block(b.clone(), self.env.clone())),
-                    None => None,
-                    Some(e) => Some(self.eval_expr(e)?),
+                let variable = if *dynm {
+                    self.env.borrow_mut().dynm_id += 1;
+                    Variable::DynamVariable {
+                        id: self.env.borrow_mut().dynm_id - 1,
+                        name: name.clone(),
+                        value: expr.clone().unwrap(),
+                        used_in: Vec::new(),
+                    }
+                } else if *imut {
+                    Variable::ImutVariable {
+                        name: name.clone(),
+                        value: self.eval_expr(&expr.clone().unwrap())?,
+                    }
+                } else {
+                    Variable::RigidVariable {
+                        name: name.clone(),
+                        value: match expr {
+                            Some(Expr::Block(b)) => {
+                                Some(RuntimeValue::Block(b.clone(), self.env.clone()))
+                            }
+                            Some(e) => Some(self.eval_expr(e)?),
+                            None => None,
+                        },
+                    }
                 };
 
-                self.env.borrow_mut().variables.push(Variable {
-                    name: name.clone(),
-                    value,
-                    used_in: Vec::new(),
-                    is_dyn: *dynm,
-                    is_mut: !imut,
-                });
+                self.env.borrow_mut().variables.push(variable);
 
                 Ok(RuntimeValue::Null)
             }
@@ -395,16 +409,43 @@ impl Interpreter {
     ) -> RuntimeValueResult {
         let name = self.get_assign_name(target)?;
 
-        let value = self.eval_expr(value_expr)?;
+        let value = match &**value_expr {
+            Expr::Block(b) => RuntimeValue::Block(b.clone(), self.env.clone()),
+            _ => self.eval_expr(value_expr)?,
+        };
 
-        let old = self
-            .env
-            .borrow()
-            .variables
-            .iter()
-            .find(|v| v.name == name)
-            .and_then(|v| v.value.clone())
-            .ok_or_else(|| RuntimeError::UndefinedVariable(name.clone()))?;
+        let old = {
+            let env = self.env.borrow();
+
+            match env.variables.iter().find(|v| match v {
+                Variable::RigidVariable { name: n, .. }
+                | Variable::DynamVariable { name: n, .. }
+                | Variable::ImutVariable { name: n, .. } => n == &name,
+            }) {
+                Some(Variable::RigidVariable { value, .. }) => value
+                    .clone()
+                    .ok_or(RuntimeError::OperationOnUndefinedValue)?,
+
+                Some(Variable::ImutVariable { .. }) => {
+                    return Err(RuntimeError::OperationImmutableValue(name));
+                }
+
+                Some(Variable::DynamVariable { .. }) => {
+                    return Err(RuntimeError::OperationDynamicValue(name));
+                }
+
+                None => {
+                    return Err(RuntimeError::UndefinedVariable(name));
+                }
+            }
+        };
+
+        if !old.runtime_type().contains(&value.runtime_type()) {
+            return Err(RuntimeError::TypeMismatch {
+                expected: old.runtime_type().stringify(),
+                found: value.runtime_type().stringify(),
+            });
+        }
 
         let result = match op {
             AssignOperator::ASSIGN => value,
@@ -414,8 +455,14 @@ impl Interpreter {
 
         let mut env = self.env.borrow_mut();
 
-        if let Some(variable) = env.variables.iter_mut().find(|v| v.name == name) {
-            variable.value = Some(result.clone());
+        if let Some(Variable::RigidVariable { value, .. }) =
+            env.variables.iter_mut().find(|v| match v {
+                Variable::RigidVariable { name: n, .. }
+                | Variable::DynamVariable { name: n, .. }
+                | Variable::ImutVariable { name: n, .. } => n == &name,
+            })
+        {
+            *value = Some(result.clone());
             Ok(result)
         } else {
             Err(RuntimeError::UndefinedVariable(name))

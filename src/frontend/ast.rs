@@ -212,7 +212,6 @@ pub enum Stmt {
         expr: Option<Expr>,
         imut: bool,
         dynm: bool,
-        init: bool,
         typ: Type,
     },
     Metadata(metadata::Metadata, metadata::Status),

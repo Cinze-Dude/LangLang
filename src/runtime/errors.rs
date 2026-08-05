@@ -11,6 +11,8 @@ pub enum RuntimeError {
     InvalidVariableTarget(String),
     VariableTargetNameMismatch { expected: String, found: String },
     OperationOnUndefinedValue,
+    OperationImmutableValue(String),
+    OperationDynamicValue(String),
     DivisionByZero,
     ModuloByZero,
     FactorialOverflow,
@@ -41,6 +43,14 @@ impl std::fmt::Display for RuntimeError {
 
             RuntimeError::OperationOnUndefinedValue => {
                 write!(f, "operation on undefined value")
+            }
+
+            RuntimeError::OperationImmutableValue(name) => {
+                write!(f, "operation on immutable variable '{}'", name)
+            }
+
+            RuntimeError::OperationDynamicValue(name) => {
+                write!(f, "operation on dynamic variable '{}'", name)
             }
 
             RuntimeError::InvalidVariableTarget(str) => {

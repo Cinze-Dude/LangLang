@@ -79,7 +79,6 @@ impl parser::Parser {
                     expr: None,
                     imut,
                     dynm,
-                    init: false,
                     typ,
                 }))
             }
@@ -87,16 +86,19 @@ impl parser::Parser {
             TokenKind::ASSIGN => {
                 self.eat();
 
-                let result = *self.parse_expr(BindingPower::DEFAULT)?;
+                let result = if self.consume(TokenKind::SQRT) {
+                    None
+                } else {
+                    Some(*self.parse_expr(BindingPower::DEFAULT)?)
+                };
 
                 self.expect(TokenKind::SC)?;
 
                 Ok(Box::new(Stmt::Var {
                     name,
-                    expr: Some(result),
+                    expr: result,
                     imut,
                     dynm,
-                    init: true,
                     typ,
                 }))
             }

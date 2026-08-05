@@ -2,20 +2,30 @@ use crate::{
     frontend::ast::{Expr, Stmt},
     runtime::errors::{RuntimeError, RuntimeResult, RuntimeValueResult},
 };
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{cell::RefCell, rc::Rc};
 
 #[derive(Debug, Clone)]
-pub struct Variable {
-    pub name: String,
-    pub value: Option<RuntimeValue>,
-    pub used_in: Vec<String>, // for the used_in dynamic variables
-    pub is_dyn: bool,
-    pub is_mut: bool,
+pub enum Variable {
+    RigidVariable {
+        name: String,
+        value: Option<RuntimeValue>,
+    },
+    DynamVariable {
+        id: usize,
+        name: String,
+        value: Expr,
+        used_in: Vec<usize>,
+    },
+    ImutVariable {
+        name: String,
+        value: RuntimeValue,
+    },
 }
 
 #[derive(Debug, Clone)]
 pub struct Environment {
     pub variables: Vec<Variable>,
+    pub dynm_id: usize,
     parent: Option<Rc<RefCell<Environment>>>,
 }
 
@@ -23,6 +33,7 @@ impl Environment {
     pub fn new() -> Self {
         Self {
             variables: Vec::new(),
+            dynm_id: 0,
             parent: None,
         }
     }
@@ -30,18 +41,30 @@ impl Environment {
     pub fn with_parent(parent: Rc<RefCell<Environment>>) -> Self {
         Self {
             variables: Vec::new(),
+            dynm_id: 0,
             parent: Some(parent),
         }
     }
 
     pub fn get(&self, key: &str) -> Option<RuntimeValue> {
-        if let Some(variable) = self.variables.iter().find(|v| v.name == key) {
-            return variable.value.clone();
-        }
+        match self.variables.iter().find(|var| match var {
+            Variable::RigidVariable { name, .. }
+            | Variable::DynamVariable { name, .. }
+            | Variable::ImutVariable { name, .. } => name == key,
+        }) {
+            Some(Variable::RigidVariable { value, .. }) => value.clone(),
 
-        match &self.parent {
-            Some(parent) => parent.borrow().get(key),
-            None => None,
+            Some(Variable::ImutVariable { value, .. }) => Some(value.clone()),
+
+            Some(Variable::DynamVariable { value, .. }) => {
+                // evaluate the expression here or elsewhere
+                None
+            }
+
+            None => match &self.parent {
+                Some(parent) => parent.borrow().get(key),
+                None => None,
+            },
         }
     }
 }
