@@ -195,6 +195,8 @@ pub fn create_token_lookups() {
     nud(TokenKind::ACOS, Parser::parse_prefix);
     nud(TokenKind::ATAN, Parser::parse_prefix);
     nud(TokenKind::SQRT, Parser::parse_prefix);
+    nud(TokenKind::MOD, Parser::parse_type_expr);
+    nud(TokenKind::TYPEOF, Parser::parse_typeof);
 
     stmt(TokenKind::LET, Parser::parse_var);
     stmt(TokenKind::AUTO, Parser::parse_var);

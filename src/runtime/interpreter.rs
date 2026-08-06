@@ -68,51 +68,12 @@ impl Interpreter {
                 imut,
                 dynm,
                 typ,
-            } => {
-                let expected = self.eval_type(typ)?;
-                let value = self.eval_expr(expr.as_ref().unwrap())?;
-
-                if !expected.contains(&value.runtime_type()) {
-                    return Err(RuntimeError::TypeMismatch {
-                        expected: expected.stringify(),
-                        found: value.runtime_type().stringify(),
-                    });
-                }
-                let variable = if *dynm {
-                    self.env.borrow_mut().dynm_id += 1;
-                    Variable::DynamVariable {
-                        id: self.env.borrow_mut().dynm_id - 1,
-                        name: name.clone(),
-                        value: expr.clone().unwrap(),
-                        used_in: Vec::new(),
-                    }
-                } else if *imut {
-                    Variable::ImutVariable {
-                        name: name.clone(),
-                        value: self.eval_expr(&expr.clone().unwrap())?,
-                    }
-                } else {
-                    Variable::RigidVariable {
-                        name: name.clone(),
-                        value: match expr {
-                            Some(Expr::Block(b)) => {
-                                Some(RuntimeValue::Block(b.clone(), self.env.clone()))
-                            }
-                            Some(e) => Some(self.eval_expr(e)?),
-                            None => None,
-                        },
-                    }
-                };
-
-                self.env.borrow_mut().variables.push(variable);
-
-                Ok(RuntimeValue::Null)
-            }
+            } => self.eval_variable(name, expr, imut, dynm, typ),
             _ => Err(RuntimeError::NotImplemented),
         }
     }
 
-    fn eval_type(&self, ty: &Type) -> RuntimeTypeResult {
+    pub fn eval_type(&self, ty: &Type) -> RuntimeTypeResult {
         match ty {
             Type::Block => Ok(RuntimeType::Block),
             Type::Bool => Ok(RuntimeType::Bool),
@@ -121,6 +82,7 @@ impl Interpreter {
                 Box::new(self.eval_type(k)?),
                 Box::new(self.eval_type(v)?),
             )),
+            Type::Type => Ok(RuntimeType::Type),
             Type::Null => Ok(RuntimeType::Null),
             Type::Number => Ok(RuntimeType::Number),
             Type::Rune => Ok(RuntimeType::Rune),
@@ -482,11 +444,7 @@ impl Interpreter {
             });
         }
 
-        let result = match op {
-            AssignOperator::ASSIGN => value,
-
-            _ => self.apply_assign_op(op, old, value)?,
-        };
+        let result = self.apply_assign_op(op, old, value)?;
 
         let mut env = self.env.borrow_mut();
 
@@ -521,6 +479,8 @@ impl Interpreter {
             }
             Expr::Map(kvs) => self.eval_map(kvs),
             Expr::Assign(name, op, value) => self.eval_assign(name, op, value),
+            Expr::TypeOf(e) => Ok(RuntimeValue::Type(self.eval_expr(e)?.runtime_type())),
+            Expr::Type(t) => Ok(RuntimeValue::Type(self.eval_type(t)?)),
             _ => Err(RuntimeError::NotImplemented),
         }
     }

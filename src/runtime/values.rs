@@ -84,6 +84,7 @@ pub enum RuntimeType {
     Number,
     Bool,
     Rune,
+    Type,
 
     Tuple(Vec<RuntimeType>),
     Vector(Box<RuntimeType>),
@@ -105,6 +106,7 @@ impl RuntimeType {
             RuntimeType::Number => "number".into(),
             RuntimeType::Bool => "bool".into(),
             RuntimeType::Rune => "rune".into(),
+            RuntimeType::Type => "type".into(),
 
             RuntimeType::Block => "block".into(),
 
@@ -159,6 +161,7 @@ pub enum RuntimeValue {
     Infinity,
     NegInfinity,
     NaN,
+    Type(RuntimeType),
 
     Vector(Vec<RuntimeValue>, RuntimeType),
     Tuple(Vec<RuntimeValue>, usize),
@@ -198,6 +201,8 @@ impl RuntimeValue {
                 len == other_len && v.iter().zip(w.iter()).all(|(a, b)| a.equals(b))
             }
 
+            (RuntimeValue::Type(t), RuntimeValue::Type(u)) => t == u,
+
             (RuntimeValue::Map(a), RuntimeValue::Map(b)) => {
                 a.len() == b.len()
                     && a.iter().all(|(key_a, val_a)| {
@@ -227,6 +232,7 @@ impl RuntimeValue {
             RuntimeValue::Infinity => "infinity".into(),
             RuntimeValue::NegInfinity => "negative infinity".into(),
             RuntimeValue::NaN => "NaN".into(),
+            RuntimeValue::Type(t) => t.stringify(),
 
             RuntimeValue::Block(_, _) => "<block>".into(),
 
@@ -282,13 +288,20 @@ impl RuntimeValue {
             RuntimeValue::Infinity => RuntimeType::Number,
             RuntimeValue::NegInfinity => RuntimeType::Number,
             RuntimeValue::NaN => RuntimeType::Number,
+            RuntimeValue::Type(_) => RuntimeType::Type,
 
             RuntimeValue::Block(_, _) => RuntimeType::Block,
 
             RuntimeValue::Vector(_, ty) => RuntimeType::Vector(Box::new(ty.clone())),
 
             RuntimeValue::Tuple(values, _) => {
-                RuntimeType::Tuple(values.iter().map(RuntimeValue::runtime_type).collect())
+                let mut types = Vec::new();
+                values.iter().for_each(|e| {
+                    if !types.contains(&e.runtime_type()) {
+                        types.push(e.runtime_type());
+                    }
+                });
+                RuntimeType::Tuple(types)
             }
 
             RuntimeValue::Map(k) => RuntimeType::Map(

@@ -280,6 +280,19 @@ impl Parser {
         Ok(Box::new(Expr::Index(left, index)))
     }
 
+    pub fn parse_type_expr(&mut self) -> ResultExpr {
+        self.expect(TokenKind::MOD)?;
+        Ok(Box::new(Expr::Type(
+            self.parse_type(BindingPower::DEFAULT)?,
+        )))
+    }
+
+    pub fn parse_typeof(&mut self) -> ResultExpr {
+        self.expect(TokenKind::TYPEOF)?;
+        let right = self.parse_expr(BindingPower::UNARY)?;
+        Ok(Box::new(Expr::TypeOf(right)))
+    }
+
     pub fn parse_call(&mut self, left: Box<Expr>, _: BindingPower) -> ResultExpr {
         self.expect(TokenKind::SPAREN)?;
 

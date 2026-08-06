@@ -151,6 +151,7 @@ pub enum Type {
     Rune,
     Null,
     Block,
+    Type,
 
     Tuple(Vec<Type>, usize), // fixed number of possibly different types
     Vector(Box<Type>),       // expandable, one element type
@@ -167,6 +168,7 @@ pub static TYPELU: LazyLock<HashMap<&'static str, Type>> = LazyLock::new(|| {
         ("bool", Type::Bool),
         ("rune", Type::Rune),
         ("null", Type::Null),
+        ("type", Type::Type),
         ("Block", Type::Block),
         ("infer", Type::Inferred),
     ])
@@ -202,6 +204,8 @@ pub enum Expr {
     Index(Box<Expr>, Box<Expr>),
     Call(Box<Expr>, Vec<Expr>),
     Of(Box<Expr>, Box<Expr>),
+    TypeOf(Box<Expr>),
+    Type(Box<Type>),
 }
 
 #[derive(Debug, Clone, PartialEq)]

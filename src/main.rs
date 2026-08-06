@@ -50,7 +50,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             };
 
             match inter.eval_program(&ast) {
-                Ok(value) => println!("{}", format!("{:?}", value).bright_green()),
+                Ok(value) => println!("{}", value.stringify().bright_green()),
                 Err(err) => eprintln!("{}", format!("Runtime error: {:?}", err).red()),
             }
         }
@@ -63,7 +63,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut parser = parser::Parser::new(tokens);
         let ast = parser.parse()?;
 
-        println!("AST: {:#?}", ast);
+        if false {
+            println!("AST: {:#?}", ast);
+        }
 
         let value = inter.eval_program(&ast)?;
 
