@@ -291,7 +291,10 @@ impl RuntimeValue {
                 RuntimeType::Tuple(values.iter().map(RuntimeValue::runtime_type).collect())
             }
 
-            RuntimeValue::Map(_) => todo!(),
+            RuntimeValue::Map(k) => RuntimeType::Map(
+                Box::new(k[0].0.runtime_type()),
+                Box::new(k[0].1.clone().unwrap().runtime_type()),
+            ),
 
             RuntimeValue::Func(_) => RuntimeType::Func,
             RuntimeValue::NativeFunction(_) => RuntimeType::NativeFunction,

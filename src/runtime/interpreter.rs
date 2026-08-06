@@ -67,8 +67,17 @@ impl Interpreter {
                 expr,
                 imut,
                 dynm,
-                ..
+                typ,
             } => {
+                let expected = self.eval_type(typ)?;
+                let value = self.eval_expr(expr.as_ref().unwrap())?;
+
+                if !expected.contains(&value.runtime_type()) {
+                    return Err(RuntimeError::TypeMismatch {
+                        expected: expected.stringify(),
+                        found: value.runtime_type().stringify(),
+                    });
+                }
                 let variable = if *dynm {
                     self.env.borrow_mut().dynm_id += 1;
                     Variable::DynamVariable {
@@ -168,17 +177,43 @@ impl Interpreter {
     }
 
     fn eval_map(&mut self, raw_map: &[(Expr, Option<Expr>)]) -> RuntimeValueResult {
-        Ok(RuntimeValue::Map(
-            raw_map
-                .iter()
-                .map(|(k, v)| {
-                    Ok((
-                        self.eval_expr(k)?,
-                        v.as_ref().map(|e| self.eval_expr(e)).transpose()?,
-                    ))
-                })
-                .collect::<Result<Vec<_>, _>>()?,
-        ))
+        let mut map = Vec::new();
+
+        let mut key_type: Option<RuntimeType> = None;
+        let mut value_type: Option<RuntimeType> = None;
+
+        for (k, v) in raw_map {
+            let key = self.eval_expr(k)?;
+            let value = v.as_ref().map(|e| self.eval_expr(e)).transpose()?;
+
+            if let Some(expected) = &key_type {
+                if !expected.contains(&key.runtime_type()) {
+                    return Err(RuntimeError::TypeMismatch {
+                        expected: expected.stringify(),
+                        found: key.runtime_type().stringify(),
+                    });
+                }
+            } else {
+                key_type = Some(key.runtime_type());
+            }
+
+            if let Some(val) = &value {
+                if let Some(expected) = &value_type {
+                    if !expected.contains(&val.runtime_type()) {
+                        return Err(RuntimeError::TypeMismatch {
+                            expected: expected.stringify(),
+                            found: val.runtime_type().stringify(),
+                        });
+                    }
+                } else {
+                    value_type = Some(val.runtime_type());
+                }
+            }
+
+            map.push((key, value));
+        }
+
+        Ok(RuntimeValue::Map(map))
     }
 
     fn eval_tuple(&mut self, values: &[Expr]) -> RuntimeValueResult {
