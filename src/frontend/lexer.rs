@@ -140,18 +140,6 @@ fn rune_handler(lex: &mut Lexer, regex: &Regex) {
 
     let inner = &text[1..text.len() - 1];
 
-    if inner.chars().count() > 1 {
-        eprintln!(
-            "{}",
-            format!(
-                "Lexer Error: Rune near {}:{} contains {} characters while runes cannot contain more than one character",
-                lex.line,
-                lex.pos,
-                inner.chars().count()
-            ).red()
-        );
-    }
-
     lex.push(tokens::Token::new(TokenKind::RUNE, text.to_string()));
     lex.advance_bytes(text.len());
 }
@@ -205,7 +193,7 @@ fn create_lexer(source: String) -> Lexer {
             RegexPattern::handler(r"#[^#\n]*#", comment_handler),
             // Literals
             RegexPattern::handler(r#""(?:\\.|[^"\\])*""#, string_handler),
-            RegexPattern::handler(r"<.*?>", rune_handler),
+            RegexPattern::handler(r"<(?:\\.|[^\\>])>", rune_handler),
             RegexPattern::handler(r"[0-9]+(?:\.[0-9]+)?", number_handler),
             // Identifiers / Keywords
             RegexPattern::handler(r"[A-Za-z_][A-Za-z0-9_]*", symbol_handler),

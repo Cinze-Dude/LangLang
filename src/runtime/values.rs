@@ -2,6 +2,7 @@ use crate::{
     frontend::ast::{Expr, Stmt},
     runtime::errors::{RuntimeError, RuntimeResult, RuntimeValueResult},
 };
+use colored::{ColoredString, Colorize};
 use std::{cell::RefCell, rc::Rc};
 
 #[derive(Debug, Clone)]
@@ -115,7 +116,7 @@ impl RuntimeType {
             }
 
             RuntimeType::Tuple(types) => {
-                let types = types.iter().map(RuntimeType::stringify).collect::<Vec<_>>();
+                let types = types.iter().map(|x| x.stringify()).collect::<Vec<_>>();
 
                 format!("{{{}}}", types.join(" | "))
             }
@@ -128,7 +129,7 @@ impl RuntimeType {
             RuntimeType::NativeFunction => "nativefunc".into(),
 
             RuntimeType::Union(types) => {
-                let types = types.iter().map(RuntimeType::stringify).collect::<Vec<_>>();
+                let types = types.iter().map(|x| x.stringify()).collect::<Vec<_>>();
 
                 format!("{{{}}}", types.join(" | "))
             }
@@ -221,37 +222,37 @@ impl RuntimeValue {
         }
     }
 
-    pub fn stringify(&self) -> String {
-        match self {
-            RuntimeValue::Null => "null".into(),
+    pub fn stringify(&self, color: bool) -> String {
+        let mut res = match self {
+            RuntimeValue::Null => "null".bright_black(),
 
-            RuntimeValue::String(s) => s.clone(),
-            RuntimeValue::Number(n) => n.to_string(),
-            RuntimeValue::Bool(b) => b.to_string(),
-            RuntimeValue::Rune(c) => c.to_string(),
-            RuntimeValue::Infinity => "infinity".into(),
-            RuntimeValue::NegInfinity => "negative infinity".into(),
-            RuntimeValue::NaN => "NaN".into(),
-            RuntimeValue::Type(t) => t.stringify(),
+            RuntimeValue::String(s) => s.clone().green(),
+            RuntimeValue::Number(n) => n.to_string().blue(),
+            RuntimeValue::Bool(b) => b.to_string().yellow(),
+            RuntimeValue::Rune(c) => c.to_string().magenta(),
+            RuntimeValue::Infinity => "infinity".blue().into(),
+            RuntimeValue::NegInfinity => "negative infinity".blue().into(),
+            RuntimeValue::NaN => "NaN".blue().into(),
+            RuntimeValue::Type(t) => t.stringify().bright_yellow(),
 
-            RuntimeValue::Block(_, _) => "<block>".into(),
+            RuntimeValue::Block(_, _) => "<block>".bright_cyan().into(),
 
             RuntimeValue::Vector(values, _) => {
                 let items = values
                     .iter()
-                    .map(RuntimeValue::stringify)
+                    .map(|x| x.stringify(color))
                     .collect::<Vec<_>>();
 
-                format!("[{}]", items.join(", "))
+                ColoredString::from(format!("[{}]", items.join(", ")))
             }
 
             RuntimeValue::Tuple(values, _) => {
                 let items = values
                     .iter()
-                    .map(RuntimeValue::stringify)
+                    .map(|x| x.stringify(color))
                     .collect::<Vec<_>>();
 
-                format!("{{{}}}", items.join(", "))
+                ColoredString::from(format!("{{{}}}", items.join(", ")))
             }
 
             RuntimeValue::Map(map) => {
@@ -260,22 +261,28 @@ impl RuntimeValue {
                     .map(|(k, v)| {
                         format!(
                             "{}: {}",
-                            k.stringify(),
-                            if let Some(val) = v {
-                                val.stringify()
+                            if color {
+                                k.stringify(color).bold()
                             } else {
-                                "null".into()
+                                ColoredString::from(k.stringify(color))
+                            },
+                            if let Some(val) = v {
+                                val.stringify(color)
+                            } else {
+                                "@".into()
                             }
                         )
                     })
                     .collect::<Vec<_>>();
 
-                format!("{{{}}}", items.join(", "))
+                ColoredString::from(format!("{{{}}}", items.join(", ")))
             }
 
-            RuntimeValue::Func(_) => "<function>".into(),
-            RuntimeValue::NativeFunction(_) => "<native function>".into(),
+            RuntimeValue::Func(_) => "<function>".purple().into(),
+            RuntimeValue::NativeFunction(_) => "<native function>".bright_purple().into(),
         }
+        .to_string();
+        if color { res } else { res.white().to_string() }
     }
 
     pub fn runtime_type(&self) -> RuntimeType {

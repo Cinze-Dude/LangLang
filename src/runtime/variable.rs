@@ -5,7 +5,7 @@ use crate::{
             eval_bin_add, eval_bin_div, eval_bin_mod, eval_bin_mul, eval_bin_pow, eval_bin_sub,
         },
         errors::{RuntimeError, RuntimeValueResult},
-        values::{Interpreter, RuntimeValue, Variable},
+        values::{Interpreter, RuntimeType, RuntimeValue, Variable},
     },
 };
 
@@ -25,9 +25,15 @@ impl Interpreter {
         dynm: &bool,
         typ: &Type,
     ) -> RuntimeValueResult {
-        let value = self.eval_expr(expr.as_ref().unwrap())?;
+        let value = if let Some(Expr::Block(b)) = expr {
+            RuntimeValue::Block(b.clone(), self.env.clone())
+        } else {
+            self.eval_expr(expr.as_ref().unwrap())?
+        };
         let expected = if let Type::Inferred = typ {
             value.runtime_type()
+        } else if let Type::Block = typ {
+            RuntimeType::Block
         } else {
             self.eval_type(typ)?
         };

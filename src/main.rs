@@ -28,7 +28,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             let src = src.trim();
 
-            if src == "exit()" || src == "quit()" {
+            if src == "exit();" || src == "quit();" {
                 break;
             }
 
@@ -50,7 +50,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             };
 
             match inter.eval_program(&ast) {
-                Ok(value) => println!("{}", value.stringify().bright_green()),
+                Ok(value) => println!("{}", value.stringify(false)),
                 Err(err) => eprintln!("{}", format!("Runtime error: {:?}", err).red()),
             }
         }

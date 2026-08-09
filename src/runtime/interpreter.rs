@@ -253,7 +253,37 @@ impl Interpreter {
 
                 Ok(RuntimeValue::Number(fact(n as i32).unwrap() as f64))
             }
-            _ => Err(RuntimeError::NumberError),
+            _ => {
+                let e = Box::new(expr.clone());
+                match op {
+                    PostfixOperator::DEC => self.eval_assign(
+                        &e,
+                        &AssignOperator::ME,
+                        &Box::new(Expr::Literal(Literal::Number(1.0))),
+                    ),
+                    PostfixOperator::INC => self.eval_assign(
+                        &e,
+                        &AssignOperator::PE,
+                        &Box::new(Expr::Literal(Literal::Number(1.0))),
+                    ),
+                    PostfixOperator::OPP => self.eval_assign(
+                        &e,
+                        &AssignOperator::ME,
+                        &Box::new(Expr::Literal(Literal::Number(-1.0))),
+                    ),
+                    PostfixOperator::RZA => self.eval_assign(
+                        &e,
+                        &AssignOperator::POWE,
+                        &Box::new(Expr::Literal(Literal::Number(0.5))),
+                    ),
+                    PostfixOperator::FIB => self.eval_assign(
+                        &e.clone(),
+                        &AssignOperator::ASSIGN,
+                        &Box::new(Expr::Postfix(PostfixOperator::FACT, e)),
+                    ),
+                    _ => unreachable!(),
+                }
+            }
         }
     }
 
