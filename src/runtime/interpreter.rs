@@ -1,4 +1,4 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, ops::Deref, rc::Rc};
 
 use crate::{
     frontend::ast::{
@@ -15,13 +15,6 @@ use crate::{
         values::{Environment, Interpreter, RuntimeType, RuntimeValue, Variable},
     },
 };
-
-fn eval_block_value(int: &mut Interpreter, value: RuntimeValue) -> RuntimeValueResult {
-    match value {
-        RuntimeValue::Block(body, env) => int.eval_block(&body, env),
-        _ => unreachable!(),
-    }
-}
 
 impl Interpreter {
     pub fn eval_program(&mut self, program: &Program) -> RuntimeValueResult {
@@ -41,6 +34,21 @@ impl Interpreter {
     pub fn eval_stmt(&mut self, stmt: &Stmt) -> RuntimeValueResult {
         match stmt {
             Stmt::Expr(e) => self.eval_expr(e),
+            Stmt::While(cond, body) => {
+                let previous = self.env.clone();
+
+                self.env = Rc::new(RefCell::new(Environment::with_parent(previous.clone())));
+
+                let mut res = RuntimeValue::Null;
+
+                while is_truthy(self.eval_expr(cond)?) {
+                    res = self.eval_expr(body)?;
+                }
+
+                self.env = previous;
+
+                Ok(res)
+            }
             Stmt::If {
                 condition,
                 then_branch,
@@ -70,6 +78,70 @@ impl Interpreter {
                 typ,
             } => self.eval_variable(name, expr, imut, dynm, typ),
             _ => Err(RuntimeError::NotImplemented),
+        }
+    }
+
+    pub fn eval_assign(
+        &mut self,
+        target: &Box<Expr>,
+        op: &AssignOperator,
+        value_expr: &Box<Expr>,
+    ) -> RuntimeValueResult {
+        let name = self.get_assign_name(target)?;
+
+        let value = match &**value_expr {
+            Expr::Block(b) => RuntimeValue::Block(b.clone(), self.env.clone()),
+            _ => self.eval_expr(value_expr)?,
+        };
+
+        let old = {
+            let env = self.env.borrow();
+
+            match env.variables.iter().find(|v| match v {
+                Variable::RigidVariable { name: n, .. }
+                | Variable::DynamVariable { name: n, .. }
+                | Variable::ImutVariable { name: n, .. } => n == &name,
+            }) {
+                Some(Variable::RigidVariable { value, .. }) => value
+                    .clone()
+                    .ok_or(RuntimeError::OperationOnUndefinedValue)?,
+
+                Some(Variable::ImutVariable { .. }) => {
+                    return Err(RuntimeError::OperationImmutableValue(name));
+                }
+
+                Some(Variable::DynamVariable { .. }) => {
+                    return Err(RuntimeError::OperationDynamicValue(name));
+                }
+
+                None => {
+                    return Err(RuntimeError::UndefinedVariable(name));
+                }
+            }
+        };
+
+        if !old.runtime_type().contains(&value.runtime_type()) {
+            return Err(RuntimeError::TypeMismatch {
+                expected: old.runtime_type().stringify(),
+                found: value.runtime_type().stringify(),
+            });
+        }
+
+        let result = self.apply_assign_op(op, old, value)?;
+
+        let mut env = self.env.borrow_mut();
+
+        if let Some(Variable::RigidVariable { value, .. }) =
+            env.variables.iter_mut().find(|v| match v {
+                Variable::RigidVariable { name: n, .. }
+                | Variable::DynamVariable { name: n, .. }
+                | Variable::ImutVariable { name: n, .. } => n == &name,
+            })
+        {
+            *value = Some(result.clone());
+            Ok(result)
+        } else {
+            Err(RuntimeError::UndefinedVariable(name))
         }
     }
 
@@ -254,35 +326,36 @@ impl Interpreter {
                 Ok(RuntimeValue::Number(fact(n as i32).unwrap() as f64))
             }
             _ => {
-                let e = Box::new(expr.clone());
-                match op {
-                    PostfixOperator::DEC => self.eval_assign(
-                        &e,
-                        &AssignOperator::ME,
-                        &Box::new(Expr::Literal(Literal::Number(1.0))),
+                let name = self.get_assign_name(expr)?;
+                let old = self
+                    .env
+                    .borrow()
+                    .get(name.as_ref())
+                    .ok_or(RuntimeError::UndefinedVariable(name.clone()))?;
+                let (assign_op, new) = match op {
+                    PostfixOperator::DEC => (AssignOperator::ME, RuntimeValue::Number(1.0)),
+                    PostfixOperator::INC => (AssignOperator::PE, RuntimeValue::Number(1.0)),
+                    PostfixOperator::FIB => (
+                        AssignOperator::ASSIGN,
+                        RuntimeValue::Number(
+                            fact(old.as_number().map_err(|_| RuntimeError::TypeMismatch {
+                                expected: RuntimeType::Number.stringify(),
+                                found: old.runtime_type().stringify(),
+                            })? as i32)?
+                            .into(),
+                        )
+                        .into(),
                     ),
-                    PostfixOperator::INC => self.eval_assign(
-                        &e,
-                        &AssignOperator::PE,
-                        &Box::new(Expr::Literal(Literal::Number(1.0))),
-                    ),
-                    PostfixOperator::OPP => self.eval_assign(
-                        &e,
-                        &AssignOperator::ME,
-                        &Box::new(Expr::Literal(Literal::Number(-1.0))),
-                    ),
-                    PostfixOperator::RZA => self.eval_assign(
-                        &e,
-                        &AssignOperator::POWE,
-                        &Box::new(Expr::Literal(Literal::Number(0.5))),
-                    ),
-                    PostfixOperator::FIB => self.eval_assign(
-                        &e.clone(),
-                        &AssignOperator::ASSIGN,
-                        &Box::new(Expr::Postfix(PostfixOperator::FACT, e)),
-                    ),
+                    PostfixOperator::OPP => (AssignOperator::TE, RuntimeValue::Number(-1.0)),
+                    PostfixOperator::RZA => (AssignOperator::POWE, RuntimeValue::Number(0.5)),
                     _ => unreachable!(),
-                }
+                };
+
+                self.env
+                    .borrow_mut()
+                    .assign(&name, self.apply_assign_op(&assign_op, old, new)?);
+
+                Ok(RuntimeValue::NaN)
             }
         }
     }
@@ -413,7 +486,6 @@ impl Interpreter {
     ) -> RuntimeValueResult {
         let previous = self.env.clone();
 
-        // enter block scope
         self.env = Rc::new(RefCell::new(Environment::with_parent(closure)));
 
         let mut result = RuntimeValue::Null;
@@ -422,74 +494,9 @@ impl Interpreter {
             result = self.eval_stmt(stmt)?;
         }
 
-        // leave block scope
         self.env = previous;
 
         Ok(result)
-    }
-
-    pub fn eval_assign(
-        &mut self,
-        target: &Box<Expr>,
-        op: &AssignOperator,
-        value_expr: &Box<Expr>,
-    ) -> RuntimeValueResult {
-        let name = self.get_assign_name(target)?;
-
-        let value = match &**value_expr {
-            Expr::Block(b) => RuntimeValue::Block(b.clone(), self.env.clone()),
-            _ => self.eval_expr(value_expr)?,
-        };
-
-        let old = {
-            let env = self.env.borrow();
-
-            match env.variables.iter().find(|v| match v {
-                Variable::RigidVariable { name: n, .. }
-                | Variable::DynamVariable { name: n, .. }
-                | Variable::ImutVariable { name: n, .. } => n == &name,
-            }) {
-                Some(Variable::RigidVariable { value, .. }) => value
-                    .clone()
-                    .ok_or(RuntimeError::OperationOnUndefinedValue)?,
-
-                Some(Variable::ImutVariable { .. }) => {
-                    return Err(RuntimeError::OperationImmutableValue(name));
-                }
-
-                Some(Variable::DynamVariable { .. }) => {
-                    return Err(RuntimeError::OperationDynamicValue(name));
-                }
-
-                None => {
-                    return Err(RuntimeError::UndefinedVariable(name));
-                }
-            }
-        };
-
-        if !old.runtime_type().contains(&value.runtime_type()) {
-            return Err(RuntimeError::TypeMismatch {
-                expected: old.runtime_type().stringify(),
-                found: value.runtime_type().stringify(),
-            });
-        }
-
-        let result = self.apply_assign_op(op, old, value)?;
-
-        let mut env = self.env.borrow_mut();
-
-        if let Some(Variable::RigidVariable { value, .. }) =
-            env.variables.iter_mut().find(|v| match v {
-                Variable::RigidVariable { name: n, .. }
-                | Variable::DynamVariable { name: n, .. }
-                | Variable::ImutVariable { name: n, .. } => n == &name,
-            })
-        {
-            *value = Some(result.clone());
-            Ok(result)
-        } else {
-            Err(RuntimeError::UndefinedVariable(name))
-        }
     }
 
     pub fn eval_expr(&mut self, expr: &Expr) -> RuntimeValueResult {
@@ -503,10 +510,7 @@ impl Interpreter {
             Expr::Binary(left, op, right) => self.eval_binary(op, left, right),
             Expr::Range(start, end, step, ae) => self.eval_range(start, end, step, *ae),
             Expr::Convert(subj, ty) => self.eval_convert(subj, ty),
-            Expr::Block(stats) => {
-                let b = RuntimeValue::Block(stats.clone(), self.env.clone());
-                eval_block_value(self, b)
-            }
+            Expr::Block(stats) => self.eval_block(stats, self.env.clone()),
             Expr::Map(kvs) => self.eval_map(kvs),
             Expr::Assign(name, op, value) => self.eval_assign(name, op, value),
             Expr::TypeOf(e) => Ok(RuntimeValue::Type(self.eval_expr(e)?.runtime_type())),

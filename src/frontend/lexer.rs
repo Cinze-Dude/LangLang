@@ -1,8 +1,10 @@
-use crate::frontend::tokens::{self, TokenKind};
-use colored::Colorize;
+use crate::frontend::{
+    errors::LexerError,
+    tokens::{self, TokenKind},
+};
 use regex::Regex;
 
-pub type RegexHandler = fn(&mut Lexer, &Regex);
+pub type RegexHandler = fn(&mut Lexer, &Regex) -> Result<(), LexerError>;
 
 pub struct RegexPattern {
     pub regex: Regex,
@@ -42,7 +44,7 @@ impl Lexer {
         create_lexer(source)
     }
 
-    pub fn tokenize(&mut self) -> Vec<tokens::Token> {
+    pub fn tokenize(&mut self) -> Result<Vec<tokens::Token>, LexerError> {
         while !self.at_eof() {
             let mut matched = false;
 
@@ -66,7 +68,7 @@ impl Lexer {
                         self.push(tokens::Token::new(kind, text.clone()));
                         self.advance_bytes(text.len());
                     } else if let Some(handler) = handler {
-                        handler(self, &regex);
+                        handler(self, &regex)?;
                     }
 
                     break;
@@ -74,17 +76,17 @@ impl Lexer {
             }
 
             if !matched {
-                eprintln!(
-                    "Lexer Error: error on line {} near '{}'",
-                    self.line,
-                    self.remainder()
-                );
+                Err(LexerError::UnexpectedCharacter {
+                    line: self.line,
+                    pos: self.pos,
+                    character: self.remainder().chars().next().unwrap(),
+                })?;
             }
         }
 
         self.push(tokens::Token::new(TokenKind::EOF, "EOF".to_string()));
 
-        std::mem::take(&mut self.tokens)
+        Ok(std::mem::take(&mut self.tokens))
     }
 
     fn advance_bytes(&mut self, n: usize) {
@@ -119,13 +121,15 @@ fn text_helper<'a>(source: &'a str, regex: &Regex) -> &'a str {
     regex.find(source).unwrap().as_str()
 }
 
-fn skip_handler(lex: &mut Lexer, regex: &Regex) {
+fn skip_handler(lex: &mut Lexer, regex: &Regex) -> Result<(), LexerError> {
     let text = text_helper(lex.remainder(), regex);
 
     lex.advance_bytes(text.len());
+
+    Ok(())
 }
 
-fn string_handler(lex: &mut Lexer, regex: &Regex) {
+fn string_handler(lex: &mut Lexer, regex: &Regex) -> Result<(), LexerError> {
     let text = regex.find(lex.remainder()).unwrap().as_str().to_string();
 
     lex.push(tokens::Token::new(
@@ -133,26 +137,27 @@ fn string_handler(lex: &mut Lexer, regex: &Regex) {
         text[1..text.len() - 1].to_string(),
     ));
     lex.advance_bytes(text.len());
+    Ok(())
 }
 
-fn rune_handler(lex: &mut Lexer, regex: &Regex) {
+fn rune_handler(lex: &mut Lexer, regex: &Regex) -> Result<(), LexerError> {
     let text = regex.find(lex.remainder()).unwrap().as_str().to_string();
-
-    let inner = &text[1..text.len() - 1];
 
     lex.push(tokens::Token::new(TokenKind::RUNE, text.to_string()));
     lex.advance_bytes(text.len());
+    Ok(())
 }
 
-fn number_handler(lex: &mut Lexer, regex: &Regex) {
+fn number_handler(lex: &mut Lexer, regex: &Regex) -> Result<(), LexerError> {
     let text = regex.find(lex.remainder()).unwrap().as_str().to_string();
     let len = text.len();
 
     lex.push(tokens::Token::new(TokenKind::NUMBER, text));
     lex.advance_bytes(len);
+    Ok(())
 }
 
-fn symbol_handler(lex: &mut Lexer, regex: &Regex) {
+fn symbol_handler(lex: &mut Lexer, regex: &Regex) -> Result<(), LexerError> {
     let text = regex.find(lex.remainder()).unwrap().as_str().to_string();
 
     let kind = match tokens::KEYWORDS.get(text.as_str()) {
@@ -162,20 +167,23 @@ fn symbol_handler(lex: &mut Lexer, regex: &Regex) {
 
     lex.push(tokens::Token::new(kind, text.clone()));
     lex.advance_bytes(text.len());
+    Ok(())
 }
 
-fn comment_handler(lex: &mut Lexer, regex: &Regex) {
+fn comment_handler(lex: &mut Lexer, regex: &Regex) -> Result<(), LexerError> {
     let text = text_helper(lex.remainder(), regex);
 
     // Single-line comments shouldn't contain newlines,
     // but this doesn't hurt if the syntax changes.
     lex.advance_bytes(text.len());
+    Ok(())
 }
 
-fn ml_comment_handler(lex: &mut Lexer, regex: &Regex) {
+fn ml_comment_handler(lex: &mut Lexer, regex: &Regex) -> Result<(), LexerError> {
     let text = text_helper(lex.remainder(), regex);
 
     lex.advance_bytes(text.len());
+    Ok(())
 }
 
 fn create_lexer(source: String) -> Lexer {

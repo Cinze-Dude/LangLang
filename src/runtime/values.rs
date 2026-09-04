@@ -1,3 +1,4 @@
+#[warn(unused)]
 use crate::{
     frontend::ast::{Expr, Stmt},
     runtime::errors::{RuntimeError, RuntimeResult, RuntimeValueResult},
@@ -57,16 +58,36 @@ impl Environment {
 
             Some(Variable::ImutVariable { value, .. }) => Some(value.clone()),
 
-            Some(Variable::DynamVariable { value, .. }) => {
-                // evaluate the expression here or elsewhere
-                None
-            }
+            Some(Variable::DynamVariable { .. }) => None,
 
             None => match &self.parent {
                 Some(parent) => parent.borrow().get(key),
                 None => None,
             },
         }
+    }
+
+    pub fn assign(&mut self, key: &str, value: RuntimeValue) -> bool {
+        for var in &mut self.variables {
+            match var {
+                Variable::RigidVariable { name, value: slot } if name == key => {
+                    *slot = Some(value);
+                    return true;
+                }
+
+                Variable::ImutVariable { name, .. } if name == key => {
+                    return false;
+                }
+
+                _ => {}
+            }
+        }
+
+        if let Some(parent) = &self.parent {
+            return parent.borrow_mut().assign(key, value);
+        }
+
+        false
     }
 }
 

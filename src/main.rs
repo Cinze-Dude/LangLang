@@ -50,7 +50,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             };
 
             match inter.eval_program(&ast) {
-                Ok(value) => println!("{}", value.stringify(false)),
+                Ok(value) => println!("{}", value.stringify(true)),
                 Err(err) => eprintln!("{}", format!("Runtime error: {:?}", err).red()),
             }
         }

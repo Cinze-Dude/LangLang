@@ -12,8 +12,6 @@ pub enum FrontendError {
     },
     InvalidType(String),
 
-    InvalidSyntax(String),
-
     InvalidNumber(String),
     InvalidRune(String),
     InvalidOperator,
@@ -22,7 +20,6 @@ pub enum FrontendError {
     AutoImmutable,
     ImutDynamic,
     MissingInitializer(String),
-    Internal(String),
 }
 
 pub type ResultExpr = Result<Box<Expr>, FrontendError>;
@@ -38,10 +35,6 @@ impl std::fmt::Display for FrontendError {
 
             FrontendError::InvalidType(n) => {
                 write!(f, "invalid type '{}'", n)
-            }
-
-            FrontendError::InvalidSyntax(n) => {
-                write!(f, "invalid syntax '{}'", n)
             }
 
             FrontendError::ExpectedToken {
@@ -77,10 +70,6 @@ impl std::fmt::Display for FrontendError {
 
             FrontendError::MissingInitializer(name) => {
                 write!(f, "variable '{}' requires an initializer", name)
-            }
-
-            FrontendError::Internal(msg) => {
-                write!(f, "internal error: {}", msg)
             }
         }
     }
