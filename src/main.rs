@@ -37,7 +37,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
 
             let mut lexer = lexer::Lexer::new(src.to_string());
-            let tokens = lexer.tokenize();
+            let tokens = match lexer.tokenize() {
+                Ok(tokens) => tokens,
+                Err(err) => {
+                    eprintln!("{}", format!("Lexer error: {:?}", err).red());
+                    continue;
+                }
+            };
 
             let mut parser = parser::Parser::new(tokens);
 
@@ -58,7 +64,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let src = fs::read_to_string("example.linguo")?;
 
         let mut lexer = lexer::Lexer::new(src);
-        let tokens = lexer.tokenize();
+        let tokens = match lexer.tokenize() {
+            Ok(tokens) => tokens,
+            Err(err) => {
+                eprintln!("{}", format!("Lexer error: {:?}", err).red());
+                return Ok(());
+            }
+        };
 
         let mut parser = parser::Parser::new(tokens);
         let ast = parser.parse()?;

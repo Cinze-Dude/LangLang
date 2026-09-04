@@ -17,6 +17,70 @@ impl Interpreter {
         }
     }
 
+    pub fn eval_assign(
+        &mut self,
+        target: &Box<Expr>,
+        op: &AssignOperator,
+        value_expr: &Box<Expr>,
+    ) -> RuntimeValueResult {
+        let name = self.get_assign_name(target)?;
+
+        let value = match &**value_expr {
+            Expr::Block(b) => RuntimeValue::Block(b.clone(), self.env.clone()),
+            _ => self.eval_expr(value_expr)?,
+        };
+
+        let old = {
+            let env = self.env.borrow();
+
+            match env.variables.iter().find(|v| match v {
+                Variable::RigidVariable { name: n, .. }
+                | Variable::DynamVariable { name: n, .. }
+                | Variable::ImutVariable { name: n, .. } => n == &name,
+            }) {
+                Some(Variable::RigidVariable { value, .. }) => value
+                    .clone()
+                    .ok_or(RuntimeError::OperationOnUndefinedValue)?,
+
+                Some(Variable::ImutVariable { .. }) => {
+                    return Err(RuntimeError::OperationImmutableValue(name));
+                }
+
+                Some(Variable::DynamVariable { .. }) => {
+                    return Err(RuntimeError::OperationDynamicValue(name));
+                }
+
+                None => {
+                    return Err(RuntimeError::UndefinedVariable(name));
+                }
+            }
+        };
+
+        if !old.runtime_type().contains(&value.runtime_type()) {
+            return Err(RuntimeError::TypeMismatch {
+                expected: old.runtime_type().stringify(),
+                found: value.runtime_type().stringify(),
+            });
+        }
+
+        let result = self.apply_assign_op(op, old, value)?;
+
+        let mut env = self.env.borrow_mut();
+
+        if let Some(Variable::RigidVariable { value, .. }) =
+            env.variables.iter_mut().find(|v| match v {
+                Variable::RigidVariable { name: n, .. }
+                | Variable::DynamVariable { name: n, .. }
+                | Variable::ImutVariable { name: n, .. } => n == &name,
+            })
+        {
+            *value = Some(result.clone());
+            Ok(result)
+        } else {
+            Err(RuntimeError::UndefinedVariable(name))
+        }
+    }
+
     pub fn eval_variable(
         &mut self,
         name: &String,

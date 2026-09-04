@@ -3,6 +3,15 @@ use crate::frontend::{
     tokens::TokenKind,
 };
 
+#[derive(Debug)]
+pub enum LexerError {
+    UnexpectedCharacter {
+        line: usize,
+        pos: usize,
+        character: char,
+    },
+}
+
 #[derive(Debug, Clone)]
 pub enum FrontendError {
     UnexpectedToken(TokenKind),
