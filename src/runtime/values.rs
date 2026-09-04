@@ -87,7 +87,12 @@ impl Environment {
             return parent.borrow_mut().assign(key, value);
         }
 
-        false
+        self.variables.push(Variable::RigidVariable {
+            name: key.to_string(),
+            value: Some(value),
+        });
+
+        true
     }
 }
 
@@ -110,6 +115,7 @@ pub enum RuntimeType {
 
     Tuple(Vec<RuntimeType>),
     Vector(Box<RuntimeType>),
+    Repeatable,
 
     Map(Box<RuntimeType>, Box<RuntimeType>),
 
@@ -134,6 +140,10 @@ impl RuntimeType {
 
             RuntimeType::Vector(ty) => {
                 format!("[{}]", ty.stringify())
+            }
+
+            RuntimeType::Repeatable => {
+                format!("repeatable")
             }
 
             RuntimeType::Tuple(types) => {
@@ -190,6 +200,7 @@ pub enum RuntimeValue {
     Map(Vec<(RuntimeValue, Option<RuntimeValue>)>),
 
     Block(Vec<Stmt>, Rc<RefCell<Environment>>),
+    Repeatable(String, Vec<RuntimeValue>),
 
     Func(FunctionValue),
     NativeFunction(FunctionValue),
@@ -244,7 +255,7 @@ impl RuntimeValue {
     }
 
     pub fn stringify(&self, color: bool) -> String {
-        let mut res = match self {
+        let res = match self {
             RuntimeValue::Null => "null".bright_black(),
 
             RuntimeValue::String(s) => s.clone().green(),
@@ -255,30 +266,38 @@ impl RuntimeValue {
             RuntimeValue::NegInfinity => "negative infinity".blue().into(),
             RuntimeValue::NaN => "NaN".blue().into(),
             RuntimeValue::Type(t) => t.stringify().bright_yellow(),
+            RuntimeValue::Repeatable(s, values) => ColoredString::from(format!(
+                "{s}*{{{}}}",
+                values
+                    .iter()
+                    .map(|x| x.stringify(color))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )),
 
             RuntimeValue::Block(_, _) => "<block>".bright_cyan().into(),
 
-            RuntimeValue::Vector(values, _) => {
-                let items = values
+            RuntimeValue::Vector(values, _) => ColoredString::from(format!(
+                "[{}]",
+                values
                     .iter()
                     .map(|x| x.stringify(color))
-                    .collect::<Vec<_>>();
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )),
 
-                ColoredString::from(format!("[{}]", items.join(", ")))
-            }
-
-            RuntimeValue::Tuple(values, _) => {
-                let items = values
+            RuntimeValue::Tuple(values, _) => ColoredString::from(format!(
+                "{{{}}}",
+                values
                     .iter()
                     .map(|x| x.stringify(color))
-                    .collect::<Vec<_>>();
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )),
 
-                ColoredString::from(format!("{{{}}}", items.join(", ")))
-            }
-
-            RuntimeValue::Map(map) => {
-                let items = map
-                    .iter()
+            RuntimeValue::Map(map) => ColoredString::from(format!(
+                "{{{}}}",
+                map.iter()
                     .map(|(k, v)| {
                         format!(
                             "{}: {}",
@@ -294,10 +313,9 @@ impl RuntimeValue {
                             }
                         )
                     })
-                    .collect::<Vec<_>>();
-
-                ColoredString::from(format!("{{{}}}", items.join(", ")))
-            }
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )),
 
             RuntimeValue::Func(_) => "<function>".purple().into(),
             RuntimeValue::NativeFunction(_) => "<native function>".bright_purple().into(),
@@ -319,6 +337,8 @@ impl RuntimeValue {
             RuntimeValue::Type(_) => RuntimeType::Type,
 
             RuntimeValue::Block(_, _) => RuntimeType::Block,
+
+            RuntimeValue::Repeatable(_, _) => RuntimeType::Repeatable,
 
             RuntimeValue::Vector(_, ty) => RuntimeType::Vector(Box::new(ty.clone())),
 

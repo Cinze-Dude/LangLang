@@ -1,4 +1,4 @@
-use std::{cell::RefCell, ops::Deref, rc::Rc};
+use std::{cell::RefCell, rc::Rc};
 
 use crate::{
     frontend::ast::{
@@ -11,8 +11,8 @@ use crate::{
             eval_bin_mod, eval_bin_mul, eval_bin_neq, eval_bin_or, eval_bin_pow, eval_bin_rs,
             eval_bin_sub, eval_bin_xor, fact, is_truthy,
         },
-        errors::{RuntimeError, RuntimeResult, RuntimeTypeResult, RuntimeValueResult},
-        values::{Environment, Interpreter, RuntimeType, RuntimeValue, Variable},
+        errors::{RuntimeError, RuntimeTypeResult, RuntimeValueResult},
+        values::{Environment, Interpreter, RuntimeType, RuntimeValue},
     },
 };
 
@@ -77,6 +77,32 @@ impl Interpreter {
                 dynm,
                 typ,
             } => self.eval_variable(name, expr, imut, dynm, typ),
+            Stmt::For(repeatable, body) => {
+                let rep = self.eval_expr(repeatable)?;
+
+                let RuntimeValue::Repeatable(variable, col) = rep else {
+                    return Err(RuntimeError::TypeMismatch {
+                        expected: "Repeatable".to_string(),
+                        found: rep.runtime_type().stringify(),
+                    });
+                };
+
+                if self.env.borrow().get(&variable).is_some() {
+                    return Err(RuntimeError::VariableNameAlreadyExists(variable));
+                }
+
+                let mut result = RuntimeValue::Null;
+
+                for value in col {
+                    self.env.borrow_mut().assign(&variable, value);
+
+                    if let Expr::Block(inner) = body.as_ref() {
+                        result = self.eval_block(inner, self.env.clone())?;
+                    }
+                }
+
+                Ok(result)
+            }
             _ => Err(RuntimeError::NotImplemented),
         }
     }
@@ -96,6 +122,7 @@ impl Interpreter {
             Type::Rune => Ok(RuntimeType::Rune),
             Type::String => Ok(RuntimeType::String),
             Type::Symbol(_) => Err(RuntimeError::InvalidType),
+            Type::Repeatable => Ok(RuntimeType::Repeatable),
             Type::Tuple(v, _) => Ok(RuntimeType::Tuple(
                 v.iter()
                     .map(|t| self.eval_type(t))
@@ -361,6 +388,32 @@ impl Interpreter {
         Ok(result)
     }
 
+    fn eval_of(&mut self, x: &Box<Expr>, collection: &Box<Expr>) -> RuntimeValueResult {
+        let name = match x.as_ref() {
+            Expr::Literal(Literal::Symbol(s)) => s.clone(),
+            ty => {
+                return Err(RuntimeError::TypeMismatch {
+                    expected: "Symbol".to_string(),
+                    found: self.eval_expr(ty)?.runtime_type().stringify(),
+                });
+            }
+        };
+
+        let col = self.eval_expr(collection)?;
+        let v = match col {
+            RuntimeValue::Vector(v, _) => v,
+            RuntimeValue::Tuple(v, _) => v,
+            _ => {
+                return Err(RuntimeError::TypeMismatch {
+                    expected: "Vector".to_string(),
+                    found: col.runtime_type().stringify(),
+                });
+            }
+        };
+
+        Ok(RuntimeValue::Repeatable(name, v))
+    }
+
     pub fn eval_expr(&mut self, expr: &Expr) -> RuntimeValueResult {
         match expr {
             Expr::Literal(lit) => self.eval_literal(lit),
@@ -377,6 +430,7 @@ impl Interpreter {
             Expr::Assign(name, op, value) => self.eval_assign(name, op, value),
             Expr::TypeOf(e) => Ok(RuntimeValue::Type(self.eval_expr(e)?.runtime_type())),
             Expr::Type(t) => Ok(RuntimeValue::Type(self.eval_type(t)?)),
+            Expr::Of(x, collection) => self.eval_of(x, collection),
             _ => Err(RuntimeError::NotImplemented),
         }
     }

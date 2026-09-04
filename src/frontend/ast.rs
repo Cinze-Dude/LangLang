@@ -152,6 +152,7 @@ pub enum Type {
     Null,
     Block,
     Type,
+    Repeatable,
 
     Tuple(Vec<Type>, usize), // fixed number of possibly different types
     Vector(Box<Type>),       // expandable, one element type
@@ -170,6 +171,7 @@ pub static TYPELU: LazyLock<HashMap<&'static str, Type>> = LazyLock::new(|| {
         ("null", Type::Null),
         ("type", Type::Type),
         ("Block", Type::Block),
+        ("Repeatable", Type::Repeatable),
         ("infer", Type::Inferred),
     ])
 });
