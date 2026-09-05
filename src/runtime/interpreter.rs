@@ -190,10 +190,7 @@ impl Interpreter {
             (_, RuntimeValue::NaN) => Ok(RuntimeValue::NaN),
 
             // Everything else is invalid
-            (op, value) => Err(RuntimeError::Custom(format!(
-                "Unary operator {:?} cannot be applied to {:?}",
-                op, value
-            ))),
+            _ => Err(RuntimeError::InvalidOperand),
         }
     }
 

@@ -234,6 +234,10 @@ impl Parser {
     pub fn parse_curly_expr(&mut self) -> ResultExpr {
         self.eat();
 
+        if self.consume(TokenKind::CCURLY) {
+            return Ok(Box::new(Expr::Tuple(Vec::new())));
+        }
+
         let first = self.parse_expr(BindingPower::DEFAULT)?;
 
         if self.consume(TokenKind::COLON) {

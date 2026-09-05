@@ -93,6 +93,10 @@ impl Parser {
     pub fn parse_brace_type(&mut self) -> ResultType {
         self.expect(TokenKind::SCURLY)?;
 
+        if self.consume(TokenKind::CCURLY) {
+            return Ok(Box::new(Type::Tuple(Vec::new(), 0)));
+        }
+
         let first = self.parse_type(BindingPower::DEFAULT)?;
 
         if self.current_token().kind == TokenKind::COLON {

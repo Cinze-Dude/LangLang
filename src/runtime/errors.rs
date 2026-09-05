@@ -1,5 +1,3 @@
-use std::fmt::write;
-
 use crate::runtime::values::{RuntimeType, RuntimeValue};
 
 pub type RuntimeResult<T> = Result<T, RuntimeError>;
@@ -29,6 +27,7 @@ pub enum RuntimeError {
     NotCallable,
     NumberError,
     InfinityError,
+    TupleLengthOrTypeMismatch,
 
     InvalidType,
 
@@ -42,6 +41,10 @@ impl std::fmt::Display for RuntimeError {
         match self {
             RuntimeError::VariableNameAlreadyExists(name) => {
                 write!(f, "variable name already exists {}", name)
+            }
+
+            RuntimeError::TupleLengthOrTypeMismatch => {
+                write!(f, "tuple length or type mismatch")
             }
 
             RuntimeError::UndefinedVariable(name) => {

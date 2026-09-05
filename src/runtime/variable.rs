@@ -108,6 +108,7 @@ impl Interpreter {
                 found: value.runtime_type().stringify(),
             });
         }
+
         let variable = if *dynm {
             self.env.borrow_mut().dynm_id += 1;
             Variable::DynamVariable {
@@ -126,6 +127,16 @@ impl Interpreter {
                 name: name.clone(),
                 value: match expr {
                     Some(Expr::Block(b)) => Some(RuntimeValue::Block(b.clone(), self.env.clone())),
+                    Some(Expr::Tuple(v)) => match typ {
+                        Type::Tuple(_, l) => {
+                            if v.len() != *l {
+                                return Err(RuntimeError::TupleLengthOrTypeMismatch);
+                            } else {
+                                Some(self.eval_tuple(v)?)
+                            }
+                        }
+                        _ => unreachable!(),
+                    },
                     Some(e) => Some(self.eval_expr(e)?),
                     None => None,
                 },
@@ -136,6 +147,7 @@ impl Interpreter {
 
         Ok(RuntimeValue::Null)
     }
+
     pub fn apply_assign_op(
         &self,
         op: &AssignOperator,
