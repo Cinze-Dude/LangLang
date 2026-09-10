@@ -204,6 +204,7 @@ pub fn create_token_lookups() {
     stmt(TokenKind::IF, Parser::parse_if);
     stmt(TokenKind::WHILE, Parser::parse_while);
     stmt(TokenKind::FOR, Parser::parse_for);
+    stmt(TokenKind::ALIAS, Parser::parse_alias);
 }
 
 pub fn create_type_lookups() {

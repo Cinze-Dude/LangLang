@@ -95,6 +95,7 @@ pub enum TokenKind {
     AUTO,
     DYN,
     OF,
+    ALIAS,
 
     NULL,
     INF,
@@ -166,5 +167,6 @@ pub static KEYWORDS: LazyLock<HashMap<&'static str, TokenKind>> = LazyLock::new(
         ("inf", TokenKind::INF),
         ("of", TokenKind::OF),
         ("nan", TokenKind::NAN),
+        ("alias", TokenKind::ALIAS),
     ])
 });

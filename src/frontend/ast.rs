@@ -229,6 +229,7 @@ pub enum Stmt {
     },
     While(Box<Expr>, Box<Expr>),
     For(Box<Expr>, Box<Expr>),
+    Alias(String, Box<Expr>),
 }
 
 #[derive(Debug, Clone, PartialEq)]

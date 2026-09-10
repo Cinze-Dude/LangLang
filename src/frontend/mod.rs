@@ -5,6 +5,7 @@ pub mod lexer;
 pub mod lookups;
 pub mod metadata;
 pub mod parser;
+pub mod preprocessor;
 pub mod stmt;
 pub mod tokens;
 pub mod types;

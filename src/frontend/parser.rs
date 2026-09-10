@@ -2,12 +2,14 @@ use crate::frontend::{
     ast::Program,
     errors::FrontendError,
     lookups::{create_token_lookups, create_type_lookups},
+    preprocessor::{self, Preprocessor},
     tokens::{self, Token},
 };
 
 pub struct Parser {
     pub tokens: Vec<Token>,
     pub index: usize,
+    pub preproc: Preprocessor,
 }
 
 impl Parser {
@@ -17,6 +19,7 @@ impl Parser {
         Self {
             tokens: src,
             index: 0,
+            preproc: Preprocessor::new(None),
         }
     }
 
@@ -41,7 +44,10 @@ impl Parser {
             body.push(*self.parse_stmt()?);
         }
 
-        Ok(Program(body))
+        let mut preproc = Preprocessor::new(Some(Program(body)));
+        preproc.resolve_ast();
+
+        Ok(preproc.ast.ok_or(FrontendError::Internal)?)
     }
 
     pub fn expect(&mut self, kind: tokens::TokenKind) -> Result<&Token, FrontendError> {
