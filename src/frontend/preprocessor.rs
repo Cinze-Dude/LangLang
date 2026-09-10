@@ -70,7 +70,35 @@ impl Preprocessor {
                     .map(|body| Box::new(self.resolve_expr(body.clone()))),
             },
 
-            _ => stmt.clone(),
+            Stmt::Var {
+                name,
+                expr,
+                imut,
+                dynm,
+                typ,
+            } => Stmt::Var {
+                name: name.to_string(),
+                expr: expr
+                    .as_ref()
+                    .map(|x| self.resolve_expr(Box::new(x.clone()))),
+                imut: *imut,
+                dynm: *dynm,
+                typ: typ.clone(),
+            },
+
+            Stmt::Metadata(m, s) => Stmt::Metadata(*m, s.clone()),
+
+            Stmt::While(c, body) => Stmt::While(
+                Box::new(self.resolve_expr(c.clone())),
+                Box::new(self.resolve_expr(body.clone())),
+            ),
+
+            Stmt::Function(name, args, ret, expr) => Stmt::Function(
+                name.to_string(),
+                args.to_vec(),
+                ret.clone(),
+                Box::new(self.resolve_expr(expr.clone())),
+            ),
         }
     }
 
@@ -121,11 +149,7 @@ impl Preprocessor {
                     .map(|(k, v)| {
                         (
                             self.resolve_expr(Box::new(k.clone())),
-                            if let Some(rv) = v {
-                                Some(self.resolve_expr(Box::new(rv.clone())))
-                            } else {
-                                None
-                            },
+                            v.as_ref().map(|x| self.resolve_expr(Box::new(x.clone()))),
                         )
                     })
                     .collect(),
@@ -191,6 +215,8 @@ impl Parser {
         let expr = self.parse_expr(BindingPower::DEFAULT)?;
 
         self.preproc.add_alias(name.clone(), expr.clone());
+
+        self.expect(TokenKind::SC)?;
 
         Ok(Box::new(Stmt::Alias(name, expr)))
     }

@@ -81,7 +81,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut parser = parser::Parser::new(tokens);
         let ast = parser.parse()?;
 
-        if false {
+        if true {
             println!("AST: {:#?}", ast);
         }
 

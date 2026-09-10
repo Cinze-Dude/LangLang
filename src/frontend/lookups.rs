@@ -171,7 +171,7 @@ pub fn create_token_lookups() {
     nud(TokenKind::SCURLY, Parser::parse_curly_expr);
     nud(TokenKind::SBRACK, Parser::parse_list_expr);
     nud(TokenKind::SPAREN, Parser::parse_grouping);
-    nud(TokenKind::DO, Parser::parse_block);
+    nud(TokenKind::DO, Parser::parse_block_do);
 
     led(TokenKind::SPAREN, BindingPower::CALL, Parser::parse_call);
     led(TokenKind::SBRACK, BindingPower::INDEX, Parser::parse_index);
@@ -205,6 +205,7 @@ pub fn create_token_lookups() {
     stmt(TokenKind::WHILE, Parser::parse_while);
     stmt(TokenKind::FOR, Parser::parse_for);
     stmt(TokenKind::ALIAS, Parser::parse_alias);
+    stmt(TokenKind::FUNCDEF, Parser::parse_function);
 }
 
 pub fn create_type_lookups() {

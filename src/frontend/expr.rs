@@ -255,9 +255,19 @@ impl Parser {
         Ok(Box::new(Expr::Prefix(op, right)))
     }
 
-    pub fn parse_block(&mut self) -> ResultExpr {
+    pub fn parse_block_do(&mut self) -> ResultExpr {
         self.eat();
         let _ = self.expect(TokenKind::SCURLY);
+        let mut block = Vec::new();
+        while self.current_token().kind != TokenKind::CCURLY {
+            block.push(*self.parse_stmt()?);
+        }
+        self.eat();
+        Ok(Box::new(Expr::Block(block)))
+    }
+
+    pub fn parse_block(&mut self) -> ResultExpr {
+        self.expect(TokenKind::SCURLY)?;
         let mut block = Vec::new();
         while self.current_token().kind != TokenKind::CCURLY {
             block.push(*self.parse_stmt()?);
