@@ -1,11 +1,12 @@
 use colored::Colorize;
 use std::{
+    collections::HashMap,
     fs,
     io::{self, Write},
 };
 
 use crate::{
-    frontend::{lexer, parser},
+    frontend::{ast::Expr, lexer, parser},
     runtime::values,
 };
 
@@ -13,12 +14,13 @@ mod frontend;
 mod runtime;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let repl = true;
+    let repl = false;
 
     let mut inter = values::Interpreter::new();
 
     if repl {
         println!("STARTING LANGUAGE REPL");
+        let mut aliases: HashMap<String, Box<Expr>> = HashMap::new();
         loop {
             print!("> ");
             io::stdout().flush()?;
@@ -47,6 +49,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             let mut parser = parser::Parser::new(tokens);
 
+            parser.preproc.aliases = aliases.clone();
+
             let ast = match parser.parse() {
                 Ok(ast) => ast,
                 Err(err) => {
@@ -54,6 +58,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     continue;
                 }
             };
+
+            aliases = parser.preproc.aliases.clone();
 
             match inter.eval_program(&ast) {
                 Ok(value) => println!("{}", value.stringify(true)),
@@ -79,9 +85,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("AST: {:#?}", ast);
         }
 
-        let value = inter.eval_program(&ast)?;
-
-        println!("value: {:?}", value);
+        match inter.eval_program(&ast) {
+            Ok(value) => println!("{}", value.stringify(true)),
+            Err(err) => eprintln!("{}", format!("Runtime error: {:?}", err).red()),
+        }
     }
 
     Ok(())

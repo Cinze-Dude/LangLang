@@ -14,9 +14,13 @@ pub struct Preprocessor {
 }
 
 impl Preprocessor {
-    pub fn new(ast: Option<Program>) -> Self {
+    pub fn new(ast: Option<Program>, aliases: Option<HashMap<String, Box<Expr>>>) -> Self {
         Self {
-            aliases: HashMap::new(),
+            aliases: if let Some(hs) = aliases {
+                hs
+            } else {
+                HashMap::new()
+            },
             ast,
         }
     }
@@ -164,10 +168,14 @@ impl Preprocessor {
     }
 
     pub fn resolve_ast(&mut self) {
-        if let Some(program) = &self.ast {
-            for stmt in &program.0 {
-                self.resolve_stmt(stmt);
-            }
+        if let Some(program) = self.ast.take() {
+            self.ast = Some(Program(
+                program
+                    .0
+                    .iter()
+                    .map(|stmt| self.resolve_stmt(stmt))
+                    .collect(),
+            ));
         }
     }
 }

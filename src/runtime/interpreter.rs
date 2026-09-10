@@ -103,6 +103,7 @@ impl Interpreter {
 
                 Ok(result)
             }
+            Stmt::Alias(_, _) => Ok(RuntimeValue::Null),
             _ => Err(RuntimeError::NotImplemented),
         }
     }
