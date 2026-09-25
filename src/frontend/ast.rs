@@ -204,7 +204,7 @@ pub enum Expr {
     Tuple(Vec<Expr>), // Many Types: {1, "cat", null, true} {} or {number || string} *the type is Type::Array*
     Map(Vec<(Expr, Option<Expr>)>), // A dictionary {number: rune}
     Index(Box<Expr>, Box<Expr>),
-    Call(Box<Expr>, Vec<Expr>),
+    Call(String, Vec<Expr>),
     Of(Box<Expr>, Box<Expr>),
     TypeOf(Box<Expr>),
     Type(Box<Type>),

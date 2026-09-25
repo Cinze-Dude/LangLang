@@ -98,9 +98,10 @@ impl Environment {
 
 #[derive(Debug, Clone)]
 pub struct FunctionValue {
-    params: Vec<String>,
-    body: Expr,
-    closure: Rc<RefCell<Environment>>,
+    pub params: Vec<(String, RuntimeType)>,
+    pub body: Expr,
+    pub closure: Rc<RefCell<Environment>>,
+    pub rettype: RuntimeType,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

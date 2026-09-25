@@ -131,7 +131,7 @@ impl Preprocessor {
             }
 
             Expr::Call(c, args) => Expr::Call(
-                Box::new(self.resolve_expr(c)),
+                c,
                 args.iter()
                     .map(|a| self.resolve_expr(Box::new(a.clone())))
                     .collect(),

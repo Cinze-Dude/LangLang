@@ -312,6 +312,14 @@ impl Parser {
 
         let mut args = Vec::new();
 
+        let name;
+
+        if let Expr::Literal(Literal::Symbol(s)) = *left {
+            name = s;
+        } else {
+            return Err(FrontendError::InvalidCallExpr);
+        }
+
         while self.current_token().kind != TokenKind::CPAREN {
             args.push(*self.parse_expr(BindingPower::DEFAULT)?);
 
@@ -329,7 +337,7 @@ impl Parser {
 
         self.expect(TokenKind::CPAREN)?;
 
-        Ok(Box::new(Expr::Call(left, args)))
+        Ok(Box::new(Expr::Call(name, args)))
     }
 
     pub fn parse_of(&mut self, left: Box<Expr>, bp: BindingPower) -> ResultExpr {

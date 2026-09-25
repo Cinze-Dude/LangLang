@@ -25,6 +25,7 @@ pub enum FrontendError {
     InvalidRune(String),
     InvalidOperator,
     InvalidMetadata(String),
+    InvalidCallExpr,
 
     AutoImmutable,
     ImutDynamic,
@@ -40,6 +41,7 @@ pub type ResultType = Result<Box<Type>, FrontendError>;
 impl std::fmt::Display for FrontendError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            FrontendError::InvalidCallExpr => write!(f, "call expressions can only have symbols"),
             FrontendError::UnexpectedToken(t) => write!(f, "unexpected token {:?}", t),
             FrontendError::Internal => write!(f, "internal error"),
             FrontendError::InvalidType(n) => write!(f, "invalid type '{}'", n),

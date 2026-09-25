@@ -33,12 +33,27 @@ pub enum RuntimeError {
 
     NotImplemented,
 
+    UndefinedFunctionName(String),
+    ArgumentLengthMismatch { expected: String, found: String },
+
     Custom(String),
 }
 
 impl std::fmt::Display for RuntimeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            RuntimeError::UndefinedFunctionName(name) => {
+                write!(f, "undefined function name {}", name)
+            }
+
+            RuntimeError::ArgumentLengthMismatch { expected, found } => {
+                write!(
+                    f,
+                    "argument length mismatch, expected '{}', found '{}'",
+                    expected, found
+                )
+            }
+
             RuntimeError::VariableNameAlreadyExists(name) => {
                 write!(f, "variable name already exists {}", name)
             }

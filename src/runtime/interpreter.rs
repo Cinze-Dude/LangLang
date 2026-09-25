@@ -12,7 +12,7 @@ use crate::{
             eval_bin_sub, eval_bin_xor, fact, is_truthy,
         },
         errors::{RuntimeError, RuntimeTypeResult, RuntimeValueResult},
-        values::{Environment, Interpreter, RuntimeType, RuntimeValue},
+        values::{Environment, FunctionValue, Interpreter, RuntimeType, RuntimeValue},
     },
 };
 
@@ -102,6 +102,24 @@ impl Interpreter {
                 }
 
                 Ok(result)
+            }
+            Stmt::Function(name, args, ret, body) => {
+                if self.env.borrow_mut().assign(
+                    name,
+                    RuntimeValue::Func(FunctionValue {
+                        params: args
+                            .iter()
+                            .map(|(x, t)| Ok((x.to_string(), self.eval_type(t)?)))
+                            .collect::<Result<Vec<_>, _>>()?,
+                        body: *body.clone(),
+                        closure: self.env.clone(),
+                        rettype: self.eval_type(ret)?,
+                    }),
+                ) {
+                    Ok(RuntimeValue::Null)
+                } else {
+                    Err(RuntimeError::VariableNameAlreadyExists(name.to_string()))
+                }
             }
             Stmt::Alias(_, _) => Ok(RuntimeValue::Null),
             _ => Err(RuntimeError::NotImplemented),
@@ -412,6 +430,41 @@ impl Interpreter {
         Ok(RuntimeValue::Repeatable(name, v))
     }
 
+    // fn eval_call(&mut self, callee: &String, args: &[Expr]) -> RuntimeValueResult {
+    //     let Some(RuntimeValue::Func(func)) = self.env.borrow().get(callee) else {
+    //         return Err(RuntimeError::UndefinedFunctionName(callee.to_string()));
+    //     };
+
+    //     if func.params.len() != args.len() {
+    //         return Err(RuntimeError::ArgumentLengthMismatch {
+    //             expected: func.params.len().to_string(),
+    //             found: args.len().to_string(),
+    //         });
+    //     }
+
+    //     let Expr::Block(innerbody) = &func.body else {
+    //         return Err(RuntimeError::Custom("".to_string()));
+    //     };
+
+    //     args.iter()
+    //         .zip(func.params.iter())
+    //         .map(|(arg, (name, typ))| {
+    //             let value = self.eval_expr(arg)?;
+
+    //             if value.runtime_type() != *typ {
+    //                 return Err(RuntimeError::TypeMismatch {
+    //                     expected: typ.stringify(),
+    //                     found: value.runtime_type().stringify(),
+    //                 });
+    //             }
+
+    //             self.env.borrow_mut().assign(name, value);
+
+    //             Ok(())
+    //         })
+    //         .collect::<Result<Vec<_>, _>>()?;
+    // }
+
     pub fn eval_expr(&mut self, expr: &Expr) -> RuntimeValueResult {
         match expr {
             Expr::Literal(lit) => self.eval_literal(lit),
@@ -429,6 +482,7 @@ impl Interpreter {
             Expr::TypeOf(e) => Ok(RuntimeValue::Type(self.eval_expr(e)?.runtime_type())),
             Expr::Type(t) => Ok(RuntimeValue::Type(self.eval_type(t)?)),
             Expr::Of(x, collection) => self.eval_of(x, collection),
+            // Expr::Call(callee, args) => self.eval_call(callee, args),
             _ => Err(RuntimeError::NotImplemented),
         }
     }

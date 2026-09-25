@@ -1,3 +1,7 @@
 funcdef string function(string hello, number world) {
     print(hello);
 }
+
+auto ft = typeof function;
+
+ft == typeof function;
