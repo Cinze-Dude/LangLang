@@ -1,10 +1,10 @@
 use crate::{
     frontend::ast::{AssignOperator, Expr, Literal, Type},
     runtime::{
-        binops::{
+        errors::{RuntimeError, RuntimeValueResult},
+        eval::binops::{
             eval_bin_add, eval_bin_div, eval_bin_mod, eval_bin_mul, eval_bin_pow, eval_bin_sub,
         },
-        errors::{RuntimeError, RuntimeValueResult},
         values::{Interpreter, RuntimeType, RuntimeValue, Variable},
     },
 };
